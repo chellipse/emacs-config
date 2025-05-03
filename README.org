@@ -1,1 +1,4 @@
-* WIP
+* Emacs Config
+** TODO
+*** TODO add support for leader key
+*** TODO move most of init.el into config.org

@@ -597,6 +597,9 @@ TARGET should be a quoted mode"
 	(after! (lsp-ui)
 		(map! :n lsp-ui-mode-map
 		      "." #'lsp-ui-doc-glance))
+	(after! (org)
+		(map! :n org-mode-map
+		      "RET" #'org-todo))
 	)
 
 ;; =============================================================================
