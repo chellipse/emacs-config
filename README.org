@@ -1,4 +1,8 @@
 * Emacs Config
-** TODO
-*** TODO add support for leader key
-*** TODO move most of init.el into config.org
+** DONE add support for leader key
+** DONE fix rust doc display
+** TODO move most of init.el into config.org
+** TODO add some type of vc-gutter thing
+** TODO file explorer? either dired, neotree, treemacs, ranger...
+** TODO map!* macros: add doc text support
+** TODO map!* macros: have evil state defined per bind

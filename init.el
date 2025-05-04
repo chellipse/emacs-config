@@ -395,14 +395,16 @@ TARGET should be a quoted mode"
 	  (setf (alist-get 'rustfmt apheleia-formatters) '("rustfmt" "--edition" "2021")))
   (after! (tree-sitter-langs)
 	  (setq rust-mode-treesitter-derive t))
-  (setq rust-cargo-default-arguments "--color=never")
-  ;; (my-local-leader-def
-  ;; :keymaps 'rust-mode-map
-  ;; "b" 'rust-compile
-  ;; "r" 'rust-run
-  ;; "t" 'rust-test
-  ;; "c" 'rust-check)
-  )
+  (setq rust-cargo-default-arguments "--color=never"))
+
+;; (use-package rustic
+;;   :ensure t
+;;   :mode ("\\.rs\\'" . rust-mode)
+;;   :mode ("\\.rs\\'" . rustic-mode)
+;;   :config
+;;   (setq rustic-format-on-save nil)
+;;   :custom
+;;   (rustic-cargo-use-last-stored-arguments t))
 
 ;; (use-package cargo
 ;;   :ensure t
@@ -439,6 +441,9 @@ TARGET should be a quoted mode"
 ;; NOTE: conflicts with eglot
 (use-package lsp-mode
   :ensure t
+  :custom
+  (lsp-rust-analyzer-cargo-load-out-dirs-from-check t)
+  (lsp-rust-analyzer-proc-macro-enable t)
   :config
   (add-hook! (nix-mode-hook rust-mode-hook) #'lsp-mode))
 
@@ -499,7 +504,6 @@ TARGET should be a quoted mode"
 (use-package evil-org
   :ensure t
   :after evil org
-  :hook (org-mode-hook . evil-org-mode)
   :custom
   (evil-org-key-theme '(additional
                         calendar
@@ -512,6 +516,7 @@ TARGET should be a quoted mode"
                         todo))
 
   :config
+  (add-hook 'org-mode-hook #'evil-org-mode)
   (evil-org-set-key-theme)
   (require 'evil-org-agenda)
   (evil-org-agenda-set-keys))
@@ -522,10 +527,14 @@ TARGET should be a quoted mode"
 
 (use-package recentf
   :ensure nil
+  :after no-littering
   :custom
   (recentf-max-saved-items 512)
   :init
-  (recentf-mode 1))
+  (recentf-mode 1)
+  (load-file recentf-save-file)
+  :config
+  (add-hook 'kill-emacs-hook 'recentf-save-list))
 
 (setq create-lockfiles nil)
 
@@ -548,7 +557,7 @@ TARGET should be a quoted mode"
         transient-levels-file (no-littering-expand-etc-file-name "transient/levels.el")
         transient-values-file (no-littering-expand-etc-file-name "transient/values.el")))
 
-(defvar my/gc-cons-threshold (* 96 1024 1024))
+(setq gc-cons-threshold (* 96 1024 1024))
 (add-hook 'focus-out-hook #'garbage-collect)
 
 ;; =============================================================================
@@ -573,33 +582,73 @@ TARGET should be a quoted mode"
   (which-key-max-display-columns nil)
   (which-key-min-display-lines 6)
   :config
+  (add-hook 'which-key-init-buffer-hook
+            (lambda ()
+              (setq-local mode-line-format nil)))
+  ;; (setq which-key-show-mode-line nil)
   ;; Allow C-h to trigger which-key before it is done automatically
   (setq which-key-show-early-on-C-h t)
   ;; Make sure which-key buffer is always below minibuffer
   (setq which-key-popup-type 'side-window))
 
+(defun reload-config ()
+  "Reload the current config's init.el."
+  (interactive)
+  (load-file (expand-file-name "init.el" user-emacs-directory)))
+
 ;; TODO: setup leader key
-(after! (evil general lib)
+(after! (general lib)
 	;; Leader
+	(map-leader! :n global "SPC"
+		     "r" '("Reload config!" . reload-config)
+		     "ff" '("Open a file!" . find-file)
+		     "k" '("Kill current buffer." . kill-current-buffer))
+	(after! (recentf)
+		(map-leader! :n global "SPC"
+			     "fr" '("Open a recent file!" . recentf-open-files)))
+	(after! (evil)
+		(map-leader! :n global "SPC"
+			     "w v" #'evil-window-vsplit
+			     "w s" #'evil-window-split
+			     "w h" #'evil-window-left
+			     "w j" #'evil-window-down
+			     "w k" #'evil-window-up
+			     "w l" #'evil-window-right))
+	(after! (rust-mode)
+		(map-leader! :n rust-mode-map "SPC"
+			     "b" #'rust-compile
+			     "r" #'rust-run
+			     "t" #'rust-test
+			     "c" #'rust-check))
 	;; Global Maps
 	(map! :nv global
-	      "t" #'comment-line)
-	(map! :n global
 	      "9" (cmd! (scroll-up 18))
 	      "0" (cmd! (scroll-down 18))
-	      "L" #'evil-next-buffer
-	      "K" #'evil-prev-buffer
-	      "C-;" #'eval-expression
-	      "U" #'evil-redo)
+	      "t" #'comment-line)
+	(map! :n global
+	      ;; "L" #'evil-next-buffer
+	      ;; "K" #'evil-prev-buffer
+	      "C-;" #'eval-expression)
+	(after! (evil)
+		(map! :n global
+		      "U" #'evil-redo))
+	(after! (centaur-tabs)
+		(map! :n global
+		      "L" #'centaur-tabs-forward
+		      "K" #'centaur-tabs-backward))
 	;; Mode Maps
 	(map! :n eww-mode-map
 	      "H" #'eww-back-url)
-	(after! (lsp-ui)
-		(map! :n lsp-ui-mode-map
-		      "." #'lsp-ui-doc-glance))
 	(after! (org)
 		(map! :n org-mode-map
 		      "RET" #'org-todo))
+	(after! (magit)
+		(map! :n magit-mode-map
+		      "L" #'centaur-tabs-forward
+		      "K" #'centaur-tabs-backward))
+	(after! (lsp-ui)
+		(map! :n lsp-ui-mode-map
+		      "." #'lsp-ui-doc-glance))
 	)
 
 ;; =============================================================================

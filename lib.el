@@ -38,9 +38,37 @@ or aliases."
   (declare (doc-string 1))
   `(lambda (&rest _) (interactive) ,@body))
 
+(defmacro my-general-evil-define-key (states keymaps prefix &rest args)
+  "A wrapper for `general-define-key' that is similar to `evil-define-key'.
+It has positional arguments for STATES and KEYMAPS (that will not be overridden
+by a later :keymaps or :states argument). Besides this, it acts the same as
+`general-define-key', and ARGS can contain keyword arguments in addition to
+keybindings. This can basically act as a drop-in replacement for
+`evil-define-key', and unlike with `general-define-key', KEYMAPS does not need
+to be quoted."
+  (declare (indent 2))
+  `(general-def
+     :states ,(if (and (listp states)
+                       (eq (car states) 'quote))
+                  `,states
+		`',states)
+     :keymaps ,(if (and (listp keymaps)
+			(eq (car keymaps) 'quote))
+                   `,keymaps
+                 `',keymaps)
+     :prefix ,(if (and (listp prefix)
+                       (eq (car prefix) 'quote))
+                  `,prefix
+		`',prefix)
+     ,@args))
+
 (defmacro map! (states mode &rest body)
-  "A wrapper around general-evil-define-key."
-  `(general-evil-define-key ,(doom--map-keyword-to-states states) ,mode ,@body))
+  "A wrapper around my-general-evil-define-key."
+  `(my-general-evil-define-key ,(doom--map-keyword-to-states states) ,mode () ,@body))
+
+(defmacro map-leader! (states mode leader &rest body)
+  "A wrapper around my-general-evil-define-key."
+  `(my-general-evil-define-key ,(doom--map-keyword-to-states states) ,mode ,leader ,@body))
 
 (provide 'lib)
 
