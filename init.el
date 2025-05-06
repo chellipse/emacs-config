@@ -609,6 +609,7 @@ TARGET should be a quoted mode"
 (defun reload-config ()
   "Reload the current config's init.el."
   (interactive)
+  (load-file (expand-file-name "lib.el" user-emacs-directory))
   (load-file (expand-file-name "init.el" user-emacs-directory)))
 
 ;; TODO: setup leader key
@@ -618,9 +619,12 @@ TARGET should be a quoted mode"
 		     "r" '("Reload config!" . reload-config)
 		     "ff" '("Open a file!" . find-file)
 		     "k" '("Kill current buffer." . kill-current-buffer))
+	(after! (magit)
+		(map-leader! :n global "SPC"
+			     "om" '("Open a MAGIT!" . magit)))
 	(after! (recentf)
 		(map-leader! :n global "SPC"
-			     "fr" '("Open a recent file!" . recentf-open-files)))
+			     "fr" '("Open a recent file!" . recentf-open)))
 	(after! (evil)
 		(map-leader! :n global "SPC"
 			     "w v" #'evil-window-vsplit
@@ -629,6 +633,9 @@ TARGET should be a quoted mode"
 			     "w j" #'evil-window-down
 			     "w k" #'evil-window-up
 			     "w l" #'evil-window-right))
+	(after! (lsp-ui)
+		(map-leader! :n lsp-ui-mode-map "SPC"
+			     "k" #'lsp-ui-doc-glance))
 	(after! (rust-mode)
 		(map-leader! :n rust-mode-map "SPC"
 			     "b" #'rust-compile
@@ -667,6 +674,12 @@ TARGET should be a quoted mode"
 	(after! (lsp-ui)
 		(map! :n lsp-ui-mode-map
 		      "." #'lsp-ui-doc-glance))
+	(after! (org)
+		(map! :ni org-mode-map
+		      "M-h" #'org-shiftmetaleft
+		      "M-j" #'org-shiftmetadown
+		      "M-k" #'org-shiftmetaup
+		      "M-l" #'org-shiftmetaright))
 	)
 
 ;; =============================================================================
