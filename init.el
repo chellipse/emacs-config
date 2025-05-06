@@ -175,6 +175,20 @@ TARGET should be a quoted mode"
   :config
   (centaur-tabs-mode t))
 
+(setq title-list '("Coping with radical novelty requires an orthogonal method. One must consider one's own past, the experiences collected, and the habits formed in it as an unfortunate accident of history, and one has to approach the radical novelty with a blank mind, consciously refusing to try to link it with what is already familiar, because the familiar is hopelessly inadequate. One has, with initially a kind of split personality, to come to grips with a radical novelty as a dissociated topic in its own right. Coming to grips with a radical novelty amounts to creating and learning a new foreign language that can not be translated into one's mother tongue. (Any one who has learned quantum mechanics knows what I am talking about.) Needless to say, adjusting to radical novelties is not a very popular activity, for it requires hard work. For the same reason, the radical novelties themselves are unwelcome. - Dijkstra"))
+
+;; TODO make the buffer unkillable and make it the default buffer when current is killed
+(use-package dashboard
+  :ensure t
+  :config
+  (setq dashboard-banner-logo-title
+        (nth (random (length title-list)) title-list))
+  (setq dashboard-startup-banner (if (string= (user-login-name) "chelll")
+                                     "~/Sync/emacs.jpg"
+                                   'logo))
+  (setq initial-buffer-choice (lambda () (get-buffer-create dashboard-buffer-name)))
+  (dashboard-setup-startup-hook))
+
 ;; =============================================================================
 ;;                                     Evil
 ;; =============================================================================
