@@ -94,9 +94,10 @@ TARGET should be a quoted mode"
 ;;                                      UI
 ;; =============================================================================
 
+(setq base-font-height 160)
 (set-face-attribute 'default nil
                     :family "Iosevka Pro"
-                    :height 160)
+                    :height base-font-height)
 (set-face-attribute 'variable-pitch nil
                     :family "Iosekva Pro")
 
@@ -628,6 +629,9 @@ TARGET should be a quoted mode"
 	(map! :n global
 	      ;; "L" #'evil-next-buffer
 	      ;; "K" #'evil-prev-buffer
+	      "C-=" (cmd! (set-face-attribute 'default nil :height base-font-height))
+	      "C-+" #'increase-global-font-size
+	      "C--" #'decrease-global-font-size
 	      "C-;" #'eval-expression)
 	(after! (evil)
 		(map! :n global

@@ -70,6 +70,18 @@ to be quoted."
   "A wrapper around my-general-evil-define-key."
   `(my-general-evil-define-key ,(doom--map-keyword-to-states states) ,mode ,leader ,@body))
 
+(setq font-height-increment 20)
+
+(defun increase-global-font-size ()
+  (interactive)
+  (let ((current-size (face-attribute 'default :height)))
+    (set-face-attribute 'default nil :height (+ current-size font-height-increment))))
+
+(defun decrease-global-font-size ()
+  (interactive)
+  (let ((current-size (face-attribute 'default :height)))
+    (set-face-attribute 'default nil :height (- current-size font-height-increment))))
+
 (provide 'lib)
 
 ;;; lib.el ends here
