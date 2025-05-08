@@ -5,6 +5,17 @@
 ;;
 ;;; Code:
 
+;; STANDALONE
+
+(defmacro cmd! (&rest body)
+  "Returns (lambda () (interactive) ,@body)
+A factory for quickly producing interaction commands, particularly for keybinds
+or aliases."
+  (declare (doc-string 1))
+  `(lambda (&rest _) (interactive) ,@body))
+
+;; KEY MAPPING
+
 (defvar doom-evil-state-alist
   '((?n . normal)
     (?v . visual)
@@ -30,13 +41,6 @@ For example, :nvi will map to (list 'normal 'visual 'insert). See
   (cl-loop for l across (doom-keyword-name keyword)
            if (assq l doom-evil-state-alist) collect (cdr it)
            else do (error "not a valid state: %s" l)))
-
-(defmacro cmd! (&rest body)
-  "Returns (lambda () (interactive) ,@body)
-A factory for quickly producing interaction commands, particularly for keybinds
-or aliases."
-  (declare (doc-string 1))
-  `(lambda (&rest _) (interactive) ,@body))
 
 (defmacro my-general-evil-define-key (states keymaps prefix &rest args)
   "A wrapper for `general-define-key' that is similar to `evil-define-key'.
@@ -70,8 +74,19 @@ to be quoted."
   "A wrapper around my-general-evil-define-key."
   `(my-general-evil-define-key ,(doom--map-keyword-to-states states) ,mode ,leader ,@body))
 
-(setq font-height-increment 20)
+(defmacro map-after! (files states mode &rest body)
+  "A wrapper around my-general-evil-define-key."
+  `(after! ,files (my-general-evil-define-key ,(doom--map-keyword-to-states states) ,mode () ,@body)))
 
+(defmacro map-leader-after! (files states mode leader &rest body)
+  "A wrapper around my-general-evil-define-key."
+  `(after! ,files (my-general-evil-define-key ,(doom--map-keyword-to-states states) ,mode ,leader ,@body)))
+
+;; FONT HEIGHT
+
+(setq font-height-increment 15)
+
+;; NOTE: afaik height is rounded after set, so these probably aren't associative
 (defun increase-global-font-size ()
   (interactive)
   (let ((current-size (face-attribute 'default :height)))
@@ -81,6 +96,13 @@ to be quoted."
   (interactive)
   (let ((current-size (face-attribute 'default :height)))
     (set-face-attribute 'default nil :height (- current-size font-height-increment))))
+
+;; WEB
+
+(defun search-wikipedia ()
+  (interactive)
+  (let ((search (read-string "Search: ")))
+    (w3m (concat "https://en.wikipedia.org/wiki/Special:Search?search=" search))))
 
 (provide 'lib)
 

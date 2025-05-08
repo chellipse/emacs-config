@@ -74,14 +74,6 @@
        (after! ,(cdr files) ,@body)))
   )
 
-;; (defmacro setq! (&rest pairs)
-;;   "Define multiple variables.  PAIRS should be in the form (SYMBOL INITVALUE)..."
-;;   (let ((triplets nil))
-;;     (cl-loop for (var val) on pairs by #'cddr
-;;              when (and var val)
-;;              collect `(defvar ,var ,val) into defs
-;;              finally return `(progn ,@defs))))
-
 (defmacro add-hook! (files target)
   "Define hooks for all FILES to TARGET...
 FILES should be an unquoted list.
@@ -94,10 +86,11 @@ TARGET should be a quoted mode"
 ;;                                      UI
 ;; =============================================================================
 
-(setq base-font-height 160)
+(pixel-scroll-precision-mode)
+
+(setq base-font-height 140)
 (set-face-attribute 'default nil
-                    :family "Iosevka Pro"
-                    :height base-font-height)
+                    :family "Iosevka Pro")
 (set-face-attribute 'variable-pitch nil
                     :family "Iosekva Pro")
 
@@ -120,6 +113,7 @@ TARGET should be a quoted mode"
 (setq whitespace-style '(face trailing)
       whitespace-global-modes '(not shell-mode
 				    help-mode
+				    vterm-mode
 				    magit-mode
 				    magit-diff-mode
 				    ibuffer-mode
@@ -147,7 +141,12 @@ TARGET should be a quoted mode"
 
 (use-package doom-modeline
   :ensure t
-  :init (doom-modeline-mode 1))
+  :init (doom-modeline-mode 1)
+  :config
+  (setq doom-modeline-time-clock-size 3.0
+	doom-modeline-height 5)
+  (display-time-mode 1)
+  (column-number-mode 1))
 
 (use-package hl-todo
   :ensure t
@@ -175,7 +174,8 @@ TARGET should be a quoted mode"
   :config
   (centaur-tabs-mode t))
 
-(setq title-list '("Coping with radical novelty requires an orthogonal method. One must consider one's own past, the experiences collected, and the habits formed in it as an unfortunate accident of history, and one has to approach the radical novelty with a blank mind, consciously refusing to try to link it with what is already familiar, because the familiar is hopelessly inadequate. One has, with initially a kind of split personality, to come to grips with a radical novelty as a dissociated topic in its own right. Coming to grips with a radical novelty amounts to creating and learning a new foreign language that can not be translated into one's mother tongue. (Any one who has learned quantum mechanics knows what I am talking about.) Needless to say, adjusting to radical novelties is not a very popular activity, for it requires hard work. For the same reason, the radical novelties themselves are unwelcome. - Dijkstra"))
+(setq title-list '("Coping with radical novelty requires an orthogonal method. One must consider one's own past, the experiences collected, and the habits formed in it as an unfortunate accident of history, and one has to approach the radical novelty with a blank mind, consciously refusing to try to link it with what is already familiar, because the familiar is hopelessly inadequate. One has, with initially a kind of split personality, to come to grips with a radical novelty as a dissociated topic in its own right. Coming to grips with a radical novelty amounts to creating and learning a new foreign language that can not be translated into one's mother tongue. (Any one who has learned quantum mechanics knows what I am talking about.) Needless to say, adjusting to radical novelties is not a very popular activity, for it requires hard work. For the same reason, the radical novelties themselves are unwelcome. - Dijkstra"
+		   "The lesson I learned is that you can wildly, drastically improve brain interconnectivity and neuroplasticity by being obsessed with practicing a skill that you’re absolutely terrible at, for two months. - Tater Tot"))
 
 ;; TODO make the buffer unkillable and make it the default buffer when current is killed
 (use-package dashboard
@@ -365,6 +365,20 @@ TARGET should be a quoted mode"
 ;;                                  Programming
 ;; =============================================================================
 
+(electric-pair-mode 1)
+
+(setq electric-pair-pairs '())
+(defun my-electric-pair-specific-mode-config ()
+  (cond
+   ((member major-mode '(rust-mode))
+    (setq-local electric-pair-pairs '((?\" . ?\")
+                                      (?\' . ?\')
+                                      (?\{ . ?\})
+                                      (?\( . ?\))
+                                      (?\[ . ?\])))))
+  )
+(add-hook 'after-change-major-mode-hook 'my-electric-pair-specific-mode-config)
+
 ;; TODO: setup formatter for elisp and rust
 (use-package apheleia
   :ensure t
@@ -469,18 +483,13 @@ TARGET should be a quoted mode"
   (lsp-ui-doc-position 'at-point)
   (lsp-ui-doc-enable)
   :config
+  (setq lsp-ui-doc-include-signature t)
   (setq lsp-ui-doc-max-width 150
         lsp-ui-doc-max-height 24))
 
 ;; =============================================================================
 ;;                               Project Management
 ;; =============================================================================
-
-(use-package transient :ensure t) ;; Dep of Magit
-
-(use-package magit
-  :after transient
-  :ensure t)
 
 (use-package projectile
   :ensure t
@@ -505,14 +514,156 @@ TARGET should be a quoted mode"
   (envrc-global-mode))
 
 ;; =============================================================================
+;;                                    Tools
+;; =============================================================================
+
+(use-package transient :ensure t) ;; Dep of Magit
+(use-package magit
+  :after transient
+  :ensure t)
+
+(use-package vterm
+  :ensure nil
+  :commands vterm
+  :custom
+  (vterm-max-scrollback 10000)
+  (vterm-buffer-name-string "vterm: %s")
+  :config
+  (evil-set-initial-state 'vterm-mode 'insert))
+
+(use-package ranger
+  :ensure t
+  :config
+  (setq ranger-show-hidden t
+	ranger-preview-delay 0.1
+	ranger-width-parents 0.16
+	ranger-width-preview 0.5
+	ranger-max-preview-size 10))
+
+(use-package all-the-icons
+  :ensure t
+  :if (display-graphic-p))
+
+(use-package treemacs
+  :ensure t
+  :defer t
+  :config
+  (progn
+    (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
+          treemacs-deferred-git-apply-delay        0.5
+          treemacs-directory-name-transformer      #'identity
+          treemacs-display-in-side-window          t
+          treemacs-eldoc-display                   'simple
+          treemacs-file-event-delay                2000
+          treemacs-file-extension-regex            treemacs-last-period-regex-value
+          treemacs-file-follow-delay               0.2
+          treemacs-file-name-transformer           #'identity
+          treemacs-follow-after-init               t
+          treemacs-expand-after-init               t
+          treemacs-find-workspace-method           'find-for-file-or-pick-first
+          treemacs-git-command-pipe                ""
+          treemacs-goto-tag-strategy               'refetch-index
+          treemacs-header-scroll-indicators        '(nil . "^^^^^^")
+          treemacs-hide-dot-git-directory          t
+          treemacs-indentation                     2
+          treemacs-indentation-string              " "
+          treemacs-is-never-other-window           nil
+          treemacs-max-git-entries                 5000
+          treemacs-missing-project-action          'ask
+          treemacs-move-files-by-mouse-dragging    t
+          treemacs-move-forward-on-expand          nil
+          treemacs-no-png-images                   nil
+          treemacs-no-delete-other-windows         t
+          treemacs-project-follow-cleanup          nil
+          treemacs-persist-file                    (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+          treemacs-position                        'left
+          treemacs-read-string-input               'from-child-frame
+          treemacs-recenter-distance               0.1
+          treemacs-recenter-after-file-follow      nil
+          treemacs-recenter-after-tag-follow       nil
+          treemacs-recenter-after-project-jump     'always
+          treemacs-recenter-after-project-expand   'on-distance
+          treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
+          treemacs-project-follow-into-home        nil
+          treemacs-show-cursor                     nil
+          treemacs-show-hidden-files               t
+          treemacs-silent-filewatch                nil
+          treemacs-silent-refresh                  nil
+          treemacs-sorting                         'alphabetic-asc
+          treemacs-select-when-already-in-treemacs 'move-back
+          treemacs-space-between-root-nodes        t
+          treemacs-tag-follow-cleanup              t
+          treemacs-tag-follow-delay                1.5
+          treemacs-text-scale                      nil
+          treemacs-user-mode-line-format           nil
+          treemacs-user-header-line-format         nil
+          treemacs-wide-toggle-width               70
+          treemacs-width                           35
+          treemacs-width-increment                 1
+          treemacs-width-is-initially-locked       t
+          treemacs-workspace-switch-cleanup        nil)
+
+    ;; The default width and height of the icons is 22 pixels. If you are
+    ;; using a Hi-DPI display, uncomment this to double the icon size.
+    (treemacs-resize-icons 16)
+
+    (treemacs-follow-mode t)
+    (treemacs-filewatch-mode t)
+    (treemacs-fringe-indicator-mode 'always)
+    (when treemacs-python-executable
+      (treemacs-git-commit-diff-mode t))
+
+    (pcase (cons (not (null (executable-find "git")))
+                 (not (null treemacs-python-executable)))
+      (`(t . t)
+       (treemacs-git-mode 'deferred))
+      (`(t . _)
+       (treemacs-git-mode 'simple)))
+
+    (treemacs-hide-gitignored-files-mode nil))
+  :bind
+  (:map global-map
+        ("M-0"       . treemacs-select-window)
+        ("C-x t 1"   . treemacs-delete-other-windows)
+        ("C-x t t"   . treemacs)
+        ("C-x t d"   . treemacs-select-directory)
+        ("C-x t B"   . treemacs-bookmark)
+        ("C-x t C-t" . treemacs-find-file)
+        ("C-x t M-t" . treemacs-find-tag)))
+
+(use-package treemacs-evil
+  :after (treemacs evil)
+  :ensure t)
+
+(use-package treemacs-projectile
+  :after (treemacs projectile)
+  :ensure t)
+
+(use-package treemacs-icons-dired
+  :hook (dired-mode . treemacs-icons-dired-enable-once)
+  :ensure t)
+
+(use-package treemacs-magit
+  :after (treemacs magit)
+  :ensure t)
+
+(use-package w3m
+  :ensure t)
+
+;; =============================================================================
 ;;                                   Org Mode
 ;; =============================================================================
 
 (use-package org
   :ensure t
   :config
+  (add-hook 'org-mode-hook (lambda () (setq-local fill-column 100)))
+  (add-hook 'org-mode-hook #'org-indent-mode)
   (unless (file-exists-p "~/Sync/org")
     (make-directory "~/Sync/org" t))
+  (setq org-blank-before-new-entry
+	'((heading . nil)    ;; No blank line before new headings
+          (plain-list-item . nil)))  ;; No blank line before new items
   (setq org-directory "~/Sync/org"
         org-agenda-files '("~/Sync/org/agenda.org")))
 
@@ -535,6 +686,21 @@ TARGET should be a quoted mode"
   (evil-org-set-key-theme)
   (require 'evil-org-agenda)
   (evil-org-agenda-set-keys))
+
+(use-package org-superstar
+  :ensure t
+  :after org
+  :config
+  (add-hook 'org-mode-hook #'org-superstar-mode))
+
+(use-package org-appear
+  :ensure t
+  :after org
+  :custom
+  (org-appear-autolinks t)
+  (org-appear-delay 1)
+  :config
+  (add-hook 'org-mode-hook #'org-appear-mode))
 
 ;; =============================================================================
 ;;                                 Odds and Ends
@@ -600,7 +766,8 @@ TARGET should be a quoted mode"
   (add-hook 'which-key-init-buffer-hook
             (lambda ()
               (setq-local mode-line-format nil)))
-  ;; (setq which-key-show-mode-line nil)
+  (setq which-key-show-mode-line nil
+	which-key-allow-imprecise-window-fit nil)
   ;; Allow C-h to trigger which-key before it is done automatically
   (setq which-key-show-early-on-C-h t)
   ;; Make sure which-key buffer is always below minibuffer
@@ -612,74 +779,79 @@ TARGET should be a quoted mode"
   (load-file (expand-file-name "lib.el" user-emacs-directory))
   (load-file (expand-file-name "init.el" user-emacs-directory)))
 
-;; TODO: setup leader key
 (after! (general lib)
-	;; Leader
-	(map-leader! :n global "SPC"
-		     "r" '("Reload config!" . reload-config)
-		     "ff" '("Open a file!" . find-file)
-		     "k" '("Kill current buffer." . kill-current-buffer))
-	(after! (magit)
-		(map-leader! :n global "SPC"
-			     "om" '("Open a MAGIT!" . magit)))
-	(after! (recentf)
-		(map-leader! :n global "SPC"
-			     "fr" '("Open a recent file!" . recentf-open)))
-	(after! (evil)
-		(map-leader! :n global "SPC"
-			     "w v" #'evil-window-vsplit
-			     "w s" #'evil-window-split
-			     "w h" #'evil-window-left
-			     "w j" #'evil-window-down
-			     "w k" #'evil-window-up
-			     "w l" #'evil-window-right))
-	(after! (lsp-ui)
-		(map-leader! :n lsp-ui-mode-map "SPC"
-			     "k" #'lsp-ui-doc-glance))
-	(after! (rust-mode)
-		(map-leader! :n rust-mode-map "SPC"
-			     "b" #'rust-compile
-			     "r" #'rust-run
-			     "t" #'rust-test
-			     "c" #'rust-check))
+	;; Leader Global
+	(map-leader! :n '(global minibuffer-mode-map minibuffer-inactive-mode) "SPC"
+		     "f f" '("Open a file!" . find-file)
+		     "o e" '("Open Eshell!" . eshell)
+		     "o v" '("Open vTerm!" . vterm)
+		     "o t" '("Open Treemacs!" . treemacs)
+		     "s w" '("Search: Wikipedia" . search-wikipedia)
+		     "e k" '("Kill Emacs" . save-buffers-kill-emacs)
+		     "k" '("Kill current buffer." . kill-current-buffer)
+		     "r" '("Reload config!" . reload-config))
+	(map-leader-after! (magit) :n global "SPC"
+			   "om" '("Open a MAGIT!" . magit))
+	(map-leader-after! (recentf) :n global "SPC"
+			   "fr" '("Open a recent file!" . recentf-open))
+	(map-leader-after! (ranger) :n global "SPC"
+			   "or" '("Open Ranger!" . ranger))
+	(map-leader-after! (evil) :n global "SPC"
+			   "w v" #'evil-window-vsplit
+			   "w s" #'evil-window-split
+			   "w h" #'evil-window-left
+			   "w j" #'evil-window-down
+			   "w k" #'evil-window-up
+			   "w l" #'evil-window-right)
+	;; Leader Mode
+	(map-leader-after! (rust-mode) :n rust-mode-map "SPC"
+			   "b" #'rust-compile
+			   "r" #'rust-run
+			   "t" #'rust-test
+			   "c" #'rust-check)
 	;; Global Maps
 	(map! :nv global
 	      "9" (cmd! (scroll-up 18))
 	      "0" (cmd! (scroll-down 18))
 	      "t" #'comment-line)
 	(map! :n global
-	      ;; "L" #'evil-next-buffer
-	      ;; "K" #'evil-prev-buffer
 	      "C-=" (cmd! (set-face-attribute 'default nil :height base-font-height))
 	      "C-+" #'increase-global-font-size
 	      "C--" #'decrease-global-font-size
-	      "C-;" #'eval-expression)
-	(after! (evil)
-		(map! :n global
-		      "U" #'evil-redo))
-	(after! (centaur-tabs)
-		(map! :n global
-		      "L" #'centaur-tabs-forward
-		      "K" #'centaur-tabs-backward))
+	      "C-:" #'eval-expression)
+	(map-after! (evil) :n global
+		    "U" #'evil-redo)
 	;; Mode Maps
+	;; FIXME: this hits non-vterm modes
+	(map! :n '(vterm-mode-map)
+	      "C-d" #'vterm--self-insert
+	      "C-c" #'vterm--self-insert
+	      "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0)))
+	(map-after! (ranger) :n '(ranger-mode-map)
+		    "DEL" #'ranger-toggle-dotfiles
+		    "<backspace>" #'ranger-toggle-dotfiles)
+	(map-after! (centaur-tabs compile) :n '(global magit-mode-map org-mode-map dired-mode-map
+						       compilation-mode-map eww-mode-map)
+		    ;; "H" #'centaur-tabs-forward-group
+		    ;; "J" #'centaur-tabs-backward-tab
+		    ;; "K" #'centaur-tabs-forward-tab
+		    ;; "L" #'centaur-tabs-backward-group
+		    "L" #'centaur-tabs-forward
+		    "K" #'centaur-tabs-backward)
 	(map! :n eww-mode-map
 	      "H" #'eww-back-url)
-	(after! (org)
-		(map! :n org-mode-map
-		      "RET" #'org-todo))
-	(after! (magit)
-		(map! :n magit-mode-map
-		      "L" #'centaur-tabs-forward
-		      "K" #'centaur-tabs-backward))
-	(after! (lsp-ui)
-		(map! :n lsp-ui-mode-map
-		      "." #'lsp-ui-doc-glance))
-	(after! (org)
-		(map! :ni org-mode-map
-		      "M-h" #'org-shiftmetaleft
-		      "M-j" #'org-shiftmetadown
-		      "M-k" #'org-shiftmetaup
-		      "M-l" #'org-shiftmetaright))
+	(map-after! (org) :n org-mode-map
+		    ;; FIXME: this breaks following links
+		    "RET" #'org-todo)
+	(map-after! (org evil-org) :ni '(org-mode-map evil-org-mode-map)
+		    ;; NOTE: These are for manipulating subtrees, it is beyond me why the naming
+		    ;; convention is like this
+		    "M-h" #'org-shiftmetaleft
+		    "M-j" #'org-metadown
+		    "M-k" #'org-metaup
+		    "M-l" #'org-shiftmetaright)
+	(map-after! (lsp-ui) :n lsp-ui-mode-map
+		    "." #'lsp-ui-doc-glance)
 	)
 
 ;; =============================================================================
