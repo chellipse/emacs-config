@@ -168,12 +168,6 @@ TARGET should be a quoted mode"
   :init
   (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
 
-(use-package centaur-tabs
-  :ensure t
-  :demand
-  :config
-  (centaur-tabs-mode t))
-
 (setq title-list '("Coping with radical novelty requires an orthogonal method. One must consider one's own past, the experiences collected, and the habits formed in it as an unfortunate accident of history, and one has to approach the radical novelty with a blank mind, consciously refusing to try to link it with what is already familiar, because the familiar is hopelessly inadequate. One has, with initially a kind of split personality, to come to grips with a radical novelty as a dissociated topic in its own right. Coming to grips with a radical novelty amounts to creating and learning a new foreign language that can not be translated into one's mother tongue. (Any one who has learned quantum mechanics knows what I am talking about.) Needless to say, adjusting to radical novelties is not a very popular activity, for it requires hard work. For the same reason, the radical novelties themselves are unwelcome. - Dijkstra"
 		   "The lesson I learned is that you can wildly, drastically improve brain interconnectivity and neuroplasticity by being obsessed with practicing a skill that you’re absolutely terrible at, for two months. - Tater Tot"))
 
@@ -837,14 +831,6 @@ TARGET should be a quoted mode"
 	(map-after! (ranger) :n '(ranger-mode-map)
 		    "DEL" #'ranger-toggle-dotfiles
 		    "<backspace>" #'ranger-toggle-dotfiles)
-	(map-after! (centaur-tabs compile) :n '(global magit-mode-map org-mode-map dired-mode-map
-						       compilation-mode-map eww-mode-map)
-		    ;; "H" #'centaur-tabs-forward-group
-		    ;; "J" #'centaur-tabs-backward-tab
-		    ;; "K" #'centaur-tabs-forward-tab
-		    ;; "L" #'centaur-tabs-backward-group
-		    "L" #'centaur-tabs-forward
-		    "K" #'centaur-tabs-backward)
 	(map! :n eww-mode-map
 	      "H" #'eww-back-url)
 	(map-after! (org) :n org-mode-map
