@@ -263,6 +263,20 @@ TARGET should be a quoted mode"
 			'(read-only t face minibuffer-prompt intangible t cursor-intangible t))
 	  (general-add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)))
 
+(use-package vertico-directory
+  :ensure nil
+  :after vertico general
+  :init
+  (add-hook 'rfn-esm-update-handlers #'vertico-directory-tidy)
+  :config
+  (general-def
+    :keymaps 'vertico-map
+    "RET" 'vertico-directory-enter
+    ;; this means backspace goes down a whole dir, i'm not really use why <backspace> gets
+    ;; mapped to DEL in that the minibuffer, but it does
+    "DEL" 'vertico-directory-delete-char
+    "M-DEL" 'vertico-directory-delete-word))
+
 (use-package consult
   :ensure t
   :after vertico
