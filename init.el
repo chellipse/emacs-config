@@ -177,9 +177,17 @@ TARGET should be a quoted mode"
   :config
   (setq dashboard-banner-logo-title
         (nth (random (length title-list)) title-list))
-  (setq dashboard-startup-banner (cond
-				  ((and (file-exists-p "~/Sync/emacs.jpg") (display-graphic-p)) "~/Sync/emacs.jpg")
-                                  (t (expand-file-name "banners/looking.txt" user-emacs-directory))))
+  (setq dashboard-startup-banner
+	(let* ((img-file (expand-file-name "~/Sync/emacs.jpg"))
+	       (txt-file (expand-file-name "banners/looking.txt" user-emacs-directory))
+	       (img-exists (file-exists-p img-file))
+	       (txt-exists (file-exists-p txt-file)))
+	  (cond
+	   ((and img-exists txt-exists) (cons img-file txt-file))
+	   (img-exists (cons img-file 3))
+	   (txt-exists (cons 'logo txt-file))
+	   (t (cons 'logo 3)))))
+
   (setq dashboard-items '((recents   . 10)
 			  ;; (bookmarks . 5)
 			  (projects  . 5)
