@@ -1,0 +1,9 @@
+*
+!.gitignore
+!README.org
+!early-init.el
+!init.el
+!lib.el
+!elpaca.lock
+!banners
+!banners/*
