@@ -499,7 +499,7 @@ TARGET should be a quoted mode"
   :custom
   (projectile-enable-caching t)
   (projectile-globally-ignored-directories
-   '(".git" ".log" "tmp" "dist" "*node_modules" ".direnv" "*target" "*.lsp" "*.clj-kondo"))
+   '(".git" ".log" "build" "node_modules" ".direnv" "target"))
   :config
   (add-to-list 'projectile-project-root-files "shell.nix")
   (add-to-list 'projectile-project-root-files "flake.nix"))
