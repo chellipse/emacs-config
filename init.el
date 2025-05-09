@@ -295,6 +295,11 @@ TARGET should be a quoted mode"
   (setq xref-show-xrefs-function #'consult-xref
         xref-show-definitions-function #'consult-xref)
 
+  (defvar dynamic-diagnostic-fn #'consult-flymake
+    "Consult diagnostics dyn fn, changes between consult-flymake and consult-flycheck based on mode")
+  (add-hook 'flymake-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flymake)))
+  (add-hook 'flycheck-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flycheck)))
+
   :config
   (consult-customize
    consult-theme :preview-key '(:debounce 0.1 any)
@@ -310,6 +315,9 @@ TARGET should be a quoted mode"
 	  (setq evil-jumps-cross-buffers nil)
 	  (evil-set-command-property 'consult-line :jump t)))
 
+(use-package consult-flycheck
+  :ensure t
+  :after consult flycheck)
 
 (use-package marginalia
   :ensure t
@@ -399,11 +407,10 @@ TARGET should be a quoted mode"
   :config
   (add-hook! (nix-mode-hook rust-mode-hook emacs-lisp-mode-hook) #'apheleia-mode))
 
-;; (use-package flycheck
-;;   :ensure t
-;;   ;; :config
-;;   ;; (add-hook 'emacs-lisp-mode-hook 'flycheck-mode)
-;;   )
+(use-package flycheck
+  :ensure t
+  :config
+  (add-hook #'rust-mode-hook #'flycheck-mode))
 
 (use-package tree-sitter-langs
   :ensure t)
@@ -797,81 +804,81 @@ TARGET should be a quoted mode"
   (load-file (expand-file-name "init.el" user-emacs-directory)))
 
 (after! (general lib)
-	;; Global
-	(map-leader! :n '(global evil-mode-map) "SPC"
-		     ";" #'eval-expression
-		     ":" #'execute-extended-command
-		     ;; Buffers
-		     "b b" #'consult-buffer
-		     "b d" '("Kill current buffer." . kill-current-buffer)
-		     ;; Emacs
-		     "e k" '("Kill Emacs" . save-buffers-kill-emacs)
-		     "e r" '("Reload config!" . reload-config)
-		     ;; Find
-		     "f f" '("Open a file!" . find-file)
-		     "f r" '("Open a recent file!" . consult-recent-file)
-		     ;; Open
-		     "o e" '("Open Eshell!" . eshell)
-		     "o r" '("Open Ranger!" . ranger)
-		     "o m" '("Open a MAGIT!" . magit)
-		     "o t" '("Open Treemacs!" . treemacs)
-		     "o v" '("Open vTerm!" . vterm)
-		     ;; Search
-		     "s w" '("Search: Wikipedia" . search-wikipedia)
-		     ;; Window
-		     "w h" #'evil-window-left
-		     "w j" #'evil-window-down
-		     "w k" #'evil-window-up
-		     "w l" #'evil-window-right
-		     "w s" #'evil-window-split
-		     "w v" #'evil-window-vsplit)
-	(map-leader-after! (evil) :n '(global evil-mode-map) "f"
-			   "b" 'consult-buffer
-			   "l" 'consult-line
-			   "f" 'consult-fd
-			   "r" 'consult-ripgrep
-			   "m" 'consult-imenu
-			   "o" 'consult-org-heading
-			   "d" 'consult-flymake)
-	(map-after! (evil) :nv '(global evil-mode-map)
-		    "t" #'comment-line)
-	(map-after! (evil) :n '(global evil-mode-map)
-		    "9" (cmd! (scroll-up 18))
-		    "0" (cmd! (scroll-down 18))
-		    "C-=" (cmd! (set-face-attribute 'default nil :height base-font-height))
-		    "C-+" #'increase-global-font-size
-		    "C--" #'decrease-global-font-size
-		    "M-j" #'evil-window-left
-		    "M-k" #'evil-window-down
-		    "M-l" #'evil-window-up
-		    "M-;" #'evil-window-right
-		    "U" #'evil-redo)
-	;; Modal
-	(map-after! (evil-collection) :nv vterm-mode-map
-		    "C-d" 'vterm--self-insert
-		    ;; NOTE: evil-collection binds C-c C-z to evil-collection-vterm-toggle-send-escape
-		    ;; normally, so this is a workaround for now
-		    "C-c C-c" 'vterm--self-insert
-		    "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0)))
-	(map-leader! :n rust-mode-map "SPC"
-		     "b" #'rust-compile
-		     "r" #'rust-run
-		     "t" #'rust-test
-		     "c" #'rust-check)
-	(map-after! (lsp-ui) :n lsp-ui-mode-map
-		    "." #'lsp-ui-doc-glance)
-	(map! :n ranger-mode-map
-	      "DEL" #'ranger-toggle-dotfiles)
-	(map! :n eww-mode-map
-	      "H" #'eww-back-url)
-	(map-after! (org evil-org) :ni '(org-mode-map evil-org-mode-map)
-		    ;; NOTE: These are for manipulating subtrees, it is beyond me why the naming
-		    ;; convention is like this
-		    "C-h" #'org-shiftmetaleft
-		    "C-j" #'org-metadown
-		    "C-k" #'org-metaup
-		    "C-l" #'org-shiftmetaright)
-	)
+        ;; Global
+        (map-leader! :n '(global evil-mode-map) "SPC"
+                     ";" #'eval-expression
+                     ":" #'eval-last-sexp
+                     ;; Buffers
+                     "b b" #'consult-buffer
+                     "b d" '("Kill current buffer." . kill-current-buffer)
+                     ;; Emacs
+                     "e k" '("Kill Emacs" . save-buffers-kill-emacs)
+                     "e r" '("Reload config!" . reload-config)
+                     ;; Find
+                     "f f" '("Open a file!" . find-file)
+                     "f r" '("Open a recent file!" . consult-recent-file)
+                     ;; Open
+                     "o e" '("Open Eshell!" . eshell)
+                     "o r" '("Open Ranger!" . ranger)
+                     "o m" '("Open a MAGIT!" . magit)
+                     "o t" '("Open Treemacs!" . treemacs)
+                     "o v" '("Open vTerm!" . vterm)
+                     ;; Search
+                     "s w" '("Search: Wikipedia" . search-wikipedia)
+                     ;; Window
+                     "w h" #'evil-window-left
+                     "w j" #'evil-window-down
+                     "w k" #'evil-window-up
+                     "w l" #'evil-window-right
+                     "w s" #'evil-window-split
+                     "w v" #'evil-window-vsplit)
+        (map-leader-after! (evil) :n '(global evil-mode-map) "f"
+                           "b" 'consult-buffer
+                           "l" 'consult-line
+                           "f" 'consult-fd
+                           "r" 'consult-ripgrep
+                           "m" 'consult-imenu
+                           "o" 'consult-org-heading
+                           "d" (cmd! (funcall dynamic-diagnostic-fn)))
+        (map-after! (evil) :nv '(global evil-mode-map)
+                    "t" #'comment-line)
+        (map-after! (evil) :n '(global evil-mode-map)
+                    "9" (cmd! (scroll-up 18))
+                    "0" (cmd! (scroll-down 18))
+                    "C-=" (cmd! (set-face-attribute 'default nil :height base-font-height))
+                    "C-+" #'increase-global-font-size
+                    "C--" #'decrease-global-font-size
+                    "M-j" #'evil-window-left
+                    "M-k" #'evil-window-down
+                    "M-l" #'evil-window-up
+                    "M-;" #'evil-window-right
+                    "U" #'evil-redo)
+        ;; Modal
+        (map-after! (evil-collection) :nv vterm-mode-map
+                    "C-d" 'vterm--self-insert
+                    ;; NOTE: evil-collection binds C-c C-z to evil-collection-vterm-toggle-send-escape
+                    ;; normally, so this is a workaround for now
+                    "C-c C-c" 'vterm--self-insert
+                    "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0)))
+        (map-leader! :n rust-mode-map "SPC"
+                     "b" #'rust-compile
+                     "r" #'rust-run
+                     "t" #'rust-test
+                     "c" #'rust-check)
+        (map-after! (lsp-ui) :n lsp-ui-mode-map
+                    "." #'lsp-ui-doc-glance)
+        (map! :n ranger-mode-map
+              "DEL" #'ranger-toggle-dotfiles)
+        (map! :n eww-mode-map
+              "H" #'eww-back-url)
+        (map-after! (org evil-org) :ni '(org-mode-map evil-org-mode-map)
+                    ;; NOTE: These are for manipulating subtrees, it is beyond me why the naming
+                    ;; convention is like this
+                    "C-h" #'org-shiftmetaleft
+                    "C-j" #'org-metadown
+                    "C-k" #'org-metaup
+                    "C-l" #'org-shiftmetaright)
+        )
 
 ;; =============================================================================
 ;;                                     Footer
