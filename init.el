@@ -263,40 +263,31 @@ TARGET should be a quoted mode"
 			'(read-only t face minibuffer-prompt intangible t cursor-intangible t))
 	  (general-add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)))
 
-(use-package vertico-directory
-  :ensure nil
-  :after vertico general
+(use-package consult
+  :ensure t
+  :after vertico
   :init
-  (add-hook 'rfn-esm-update-handlers #'vertico-directory-tidy)
-  :config
-  (general-def
-    :keymaps 'vertico-map
-    "RET" 'vertico-directory-enter
-    "DEL" 'vertico-directory-delete-char
-    "M-DEL" 'vertico-directory-delete-word))
+  (advice-add #'register-preview :override #'consult-register-window)
+  (setq register-preview-delay 0.5)
 
-(use-package vertico-multiform
-  :ensure nil
-  :after vertico
-  :custom
-  (vertico-buffer-display-action '(display-buffer-use-least-recent-window))
-  (vertico-multiform-categories
-   '((execute-extended-command grid)
-     (library reverse grid)
-     (consult-buffer vertical)
-     (consult-grep reverse grid)))
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
 
   :config
-  (vertico-multiform-mode))
+  (consult-customize
+   consult-theme :preview-key '(:debounce 0.1 any)
+   consult-ripgrep consult-git-grep consult-grep consult-man
+   consult-bookmark consult-recent-file consult-xref
+   consult--source-bookmark consult--source-file-register
+   consult--source-recent-file consult--source-project-recent-file
+   :preview-key '(:debounce 0.3 any))
 
-(use-package vertico-repeat
-  :ensure nil
-  :after vertico
-  :config
-  (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
-  (general-def
-    :states '(normal insert visual motion)
-    "C-M-;" 'vertico-repeat))
+  (setq consult-narrow-key "<")
+
+  (after! (evil)
+	  (setq evil-jumps-cross-buffers nil)
+	  (evil-set-command-property 'consult-line :jump t)))
+
 
 (use-package marginalia
   :ensure t
@@ -503,6 +494,9 @@ TARGET should be a quoted mode"
   :config
   (add-to-list 'projectile-project-root-files "shell.nix")
   (add-to-list 'projectile-project-root-files "flake.nix"))
+
+(use-package rg
+  :ensure t)
 
 (use-package direnv
   :ensure t
@@ -781,70 +775,80 @@ TARGET should be a quoted mode"
   (load-file (expand-file-name "init.el" user-emacs-directory)))
 
 (after! (general lib)
-	;; Leader Global
-	(map-leader! :n '(global minibuffer-mode-map minibuffer-inactive-mode) "SPC"
-		     "f f" '("Open a file!" . find-file)
-		     "o e" '("Open Eshell!" . eshell)
-		     "o v" '("Open vTerm!" . vterm)
-		     "o t" '("Open Treemacs!" . treemacs)
-		     "s w" '("Search: Wikipedia" . search-wikipedia)
+	;; Global
+	(map-leader! :n '(global evil-mode-map) "SPC"
+		     ";" #'eval-expression
+		     ":" #'execute-extended-command
+		     ;; Buffers
+		     "b b" #'consult-buffer
+		     "b d" '("Kill current buffer." . kill-current-buffer)
+		     ;; Emacs
 		     "e k" '("Kill Emacs" . save-buffers-kill-emacs)
-		     "k" '("Kill current buffer." . kill-current-buffer)
-		     "r" '("Reload config!" . reload-config))
-	(map-leader-after! (magit) :n global "SPC"
-			   "om" '("Open a MAGIT!" . magit))
-	(map-leader-after! (recentf) :n global "SPC"
-			   "fr" '("Open a recent file!" . recentf-open))
-	(map-leader-after! (ranger) :n global "SPC"
-			   "or" '("Open Ranger!" . ranger))
-	(map-leader-after! (evil) :n global "SPC"
-			   "w v" #'evil-window-vsplit
-			   "w s" #'evil-window-split
-			   "w h" #'evil-window-left
-			   "w j" #'evil-window-down
-			   "w k" #'evil-window-up
-			   "w l" #'evil-window-right)
-	;; Leader Mode
-	(map-leader-after! (rust-mode) :n rust-mode-map "SPC"
-			   "b" #'rust-compile
-			   "r" #'rust-run
-			   "t" #'rust-test
-			   "c" #'rust-check)
-	;; Global Maps
-	(map! :nv global
-	      "9" (cmd! (scroll-up 18))
-	      "0" (cmd! (scroll-down 18))
-	      "t" #'comment-line)
-	(map! :n global
-	      "C-=" (cmd! (set-face-attribute 'default nil :height base-font-height))
-	      "C-+" #'increase-global-font-size
-	      "C--" #'decrease-global-font-size
-	      "C-:" #'eval-expression)
-	(map-after! (evil) :n global
+		     "e r" '("Reload config!" . reload-config)
+		     ;; Find
+		     "f f" '("Open a file!" . find-file)
+		     "f r" '("Open a recent file!" . consult-recent-file)
+		     ;; Open
+		     "o e" '("Open Eshell!" . eshell)
+		     "o r" '("Open Ranger!" . ranger)
+		     "o m" '("Open a MAGIT!" . magit)
+		     "o t" '("Open Treemacs!" . treemacs)
+		     "o v" '("Open vTerm!" . vterm)
+		     ;; Search
+		     "s w" '("Search: Wikipedia" . search-wikipedia)
+		     ;; Window
+		     "w h" #'evil-window-left
+		     "w j" #'evil-window-down
+		     "w k" #'evil-window-up
+		     "w l" #'evil-window-right
+		     "w s" #'evil-window-split
+		     "w v" #'evil-window-vsplit)
+	(map-leader-after! (evil) :n '(global evil-mode-map) "f"
+			   "b" 'consult-buffer
+			   "l" 'consult-line
+			   "f" 'consult-fd
+			   "r" 'consult-ripgrep
+			   "m" 'consult-imenu
+			   "o" 'consult-org-heading
+			   "d" 'consult-flymake)
+	(map-after! (evil) :nv '(global evil-mode-map)
+		    "t" #'comment-line)
+	(map-after! (evil) :n '(global evil-mode-map)
+		    "9" (cmd! (scroll-up 18))
+		    "0" (cmd! (scroll-down 18))
+		    "C-=" (cmd! (set-face-attribute 'default nil :height base-font-height))
+		    "C-+" #'increase-global-font-size
+		    "C--" #'decrease-global-font-size
+		    "M-j" #'evil-window-left
+		    "M-k" #'evil-window-down
+		    "M-l" #'evil-window-up
+		    "M-;" #'evil-window-right
 		    "U" #'evil-redo)
-	;; Mode Maps
-	;; FIXME: this hits non-vterm modes
-	(map! :n '(vterm-mode-map)
-	      "C-d" #'vterm--self-insert
-	      "C-c" #'vterm--self-insert
-	      "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0)))
-	(map-after! (ranger) :n '(ranger-mode-map)
-		    "DEL" #'ranger-toggle-dotfiles
-		    "<backspace>" #'ranger-toggle-dotfiles)
+	;; Modal
+	(map-after! (evil-collection) :nv vterm-mode-map
+		    "C-d" 'vterm--self-insert
+		    ;; NOTE: evil-collection binds C-c C-z to evil-collection-vterm-toggle-send-escape
+		    ;; normally, so this is a workaround for now
+		    "C-c C-c" 'vterm--self-insert
+		    "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0)))
+	(map-leader! :n rust-mode-map "SPC"
+		     "b" #'rust-compile
+		     "r" #'rust-run
+		     "t" #'rust-test
+		     "c" #'rust-check)
+	(map-after! (lsp-ui) :n lsp-ui-mode-map
+		    "." #'lsp-ui-doc-glance)
+	(map! :n ranger-mode-map
+	      "DEL" #'ranger-toggle-dotfiles)
 	(map! :n eww-mode-map
 	      "H" #'eww-back-url)
-	(map-after! (org) :n org-mode-map
-		    ;; FIXME: this breaks following links
-		    "RET" #'org-todo)
 	(map-after! (org evil-org) :ni '(org-mode-map evil-org-mode-map)
 		    ;; NOTE: These are for manipulating subtrees, it is beyond me why the naming
 		    ;; convention is like this
-		    "M-h" #'org-shiftmetaleft
-		    "M-j" #'org-metadown
-		    "M-k" #'org-metaup
-		    "M-l" #'org-shiftmetaright)
-	(map-after! (lsp-ui) :n lsp-ui-mode-map
-		    "." #'lsp-ui-doc-glance)
+		    "C-h" #'org-shiftmetaleft
+		    "C-j" #'org-metadown
+		    "C-k" #'org-metaup
+		    "C-l" #'org-shiftmetaright)
 	)
 
 ;; =============================================================================
