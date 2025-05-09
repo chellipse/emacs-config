@@ -86,6 +86,8 @@ TARGET should be a quoted mode"
 ;;                                      UI
 ;; =============================================================================
 
+(setq large-file-warning-threshold (* 1000 1000 50))
+
 (pixel-scroll-precision-mode)
 
 (setq base-font-height 140)
@@ -93,6 +95,8 @@ TARGET should be a quoted mode"
                     :family "Iosevka Pro")
 (set-face-attribute 'variable-pitch nil
                     :family "Iosekva Pro")
+
+(add-to-list 'default-frame-alist '(alpha-background . 90))
 
 (setq frame-resize-pixelwise t
       window-resize-pixelwise t)
