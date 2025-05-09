@@ -438,8 +438,6 @@ TARGET should be a quoted mode"
 	  (add-hook 'rust-mode-hook 'eglot-ensure)
 	  (add-to-list 'eglot-server-programs
 		       '(rust-mode . ("rust-analyzer"))))
-  (after! (lsp-mode)
-	  (add-hook 'rust-mode-hook #'lsp))
   (after! (apheleia)
 	  (setf (alist-get 'rust-mode apheleia-mode-alist) 'rustfmt)
 	  (setf (alist-get 'rustfmt apheleia-formatters) '("rustfmt" "--edition" "2021")))
@@ -495,7 +493,9 @@ TARGET should be a quoted mode"
   (lsp-rust-analyzer-cargo-load-out-dirs-from-check t)
   (lsp-rust-analyzer-proc-macro-enable t)
   :config
-  (add-hook! (nix-mode-hook rust-mode-hook) #'lsp-mode))
+  ;; lsp-deferred is supposed to help with catching the right envrc env, but it
+  ;; doesn't seem to
+  (add-hook! (nix-mode-hook rust-mode-hook) #'lsp-deferred))
 
 (use-package lsp-ui
   :ensure t
@@ -534,6 +534,7 @@ TARGET should be a quoted mode"
 
 (use-package envrc
   :ensure t
+  :after (lsp-mode flycheck)
   :config
   (envrc-global-mode))
 
