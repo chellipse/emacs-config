@@ -79,12 +79,14 @@
 FILES should be an unquoted list.
 TARGET should be a quoted mode"
   (cl-loop for val in files
-	   collect `(add-hook ',val ,target) into defs
-	   finally return `(progn ,@defs)))
+           collect `(add-hook ',val ,target) into defs
+           finally return `(progn ,@defs)))
 
 ;; =============================================================================
 ;;                                      UI
 ;; =============================================================================
+
+(setq-default indent-tabs-mode nil tab-width 4)
 
 (setq large-file-warning-threshold (* 1000 1000 50))
 
@@ -116,13 +118,13 @@ TARGET should be a quoted mode"
 
 (setq whitespace-style '(face trailing)
       whitespace-global-modes '(not shell-mode
-				    help-mode
-				    vterm-mode
-				    magit-mode
-				    magit-diff-mode
-				    ibuffer-mode
-				    dired-mode
-				    occur-mode))
+                                    help-mode
+                                    vterm-mode
+                                    magit-mode
+                                    magit-diff-mode
+                                    ibuffer-mode
+                                    dired-mode
+                                    occur-mode))
 
 (global-whitespace-mode 1)
 
@@ -148,7 +150,7 @@ TARGET should be a quoted mode"
   :init (doom-modeline-mode 1)
   :config
   (setq doom-modeline-time-clock-size 3.0
-	doom-modeline-height 5)
+        doom-modeline-height 5)
   (display-time-mode 1)
   (column-number-mode 1))
 
@@ -173,7 +175,7 @@ TARGET should be a quoted mode"
   (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
 
 (setq title-list '("Coping with radical novelty requires an orthogonal method. One must consider one's own past, the experiences collected, and the habits formed in it as an unfortunate accident of history, and one has to approach the radical novelty with a blank mind, consciously refusing to try to link it with what is already familiar, because the familiar is hopelessly inadequate. One has, with initially a kind of split personality, to come to grips with a radical novelty as a dissociated topic in its own right. Coming to grips with a radical novelty amounts to creating and learning a new foreign language that can not be translated into one's mother tongue. (Any one who has learned quantum mechanics knows what I am talking about.) Needless to say, adjusting to radical novelties is not a very popular activity, for it requires hard work. For the same reason, the radical novelties themselves are unwelcome. - Dijkstra"
-		   "The lesson I learned is that you can wildly, drastically improve brain interconnectivity and neuroplasticity by being obsessed with practicing a skill that you’re absolutely terrible at, for two months. - Tater Tot"))
+                   "The lesson I learned is that you can wildly, drastically improve brain interconnectivity and neuroplasticity by being obsessed with practicing a skill that you’re absolutely terrible at, for two months. - Tater Tot"))
 
 ;; TODO add a hook to reopen the buffer if it doesn't exit when another is deleted
 (use-package dashboard
@@ -182,21 +184,21 @@ TARGET should be a quoted mode"
   (setq dashboard-banner-logo-title
         (nth (random (length title-list)) title-list))
   (setq dashboard-startup-banner
-	(let* ((img-file (expand-file-name "~/Sync/emacs.jpg"))
-	       (txt-file (expand-file-name "banners/looking.txt" user-emacs-directory))
-	       (img-exists (file-exists-p img-file))
-	       (txt-exists (file-exists-p txt-file)))
-	  (cond
-	   ((and img-exists txt-exists) (cons img-file txt-file))
-	   (img-exists (cons img-file 3))
-	   (txt-exists (cons 'logo txt-file))
-	   (t (cons 'logo 3)))))
+        (let* ((img-file (expand-file-name "~/Sync/emacs.jpg"))
+               (txt-file (expand-file-name "banners/looking.txt" user-emacs-directory))
+               (img-exists (file-exists-p img-file))
+               (txt-exists (file-exists-p txt-file)))
+          (cond
+           ((and img-exists txt-exists) (cons img-file txt-file))
+           (img-exists (cons img-file 3))
+           (txt-exists (cons 'logo txt-file))
+           (t (cons 'logo 3)))))
 
   (setq dashboard-items '((recents   . 10)
-			  ;; (bookmarks . 5)
-			  (projects  . 5)
-			  ;; (registers . 5)
-			  (agenda    . 5)))
+                          ;; (bookmarks . 5)
+                          (projects  . 5)
+                          ;; (registers . 5)
+                          (agenda    . 5)))
   ;; NOTE: goal here is that if we open emacs via cli and pass it file args, that we won't
   ;; end up with the dashboard in one window
   (if (>= 1 (length command-line-args)) (setq initial-buffer-choice (lambda () (get-buffer-create dashboard-buffer-name))))
@@ -211,10 +213,10 @@ TARGET should be a quoted mode"
   :after undo-tree
   :init
   (setq evil-undo-system 'undo-tree
-	evil-want-integration t
-	evil-want-keybinding nil
-	evil-want-C-u-scroll t
-	evil-want-C-i-jump t)
+        evil-want-integration t
+        evil-want-keybinding nil
+        evil-want-C-u-scroll t
+        evil-want-C-i-jump t)
   :config
   (evil-mode 1))
 
@@ -269,11 +271,11 @@ TARGET should be a quoted mode"
   (vertico-mode)
   :config
   (after! (general)
-	  (general-setq enable-recursive-minibuffers t)
-	  (minibuffer-depth-indicate-mode)
-	  (general-setq minibuffer-prompt-properties
-			'(read-only t face minibuffer-prompt intangible t cursor-intangible t))
-	  (general-add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)))
+          (general-setq enable-recursive-minibuffers t)
+          (minibuffer-depth-indicate-mode)
+          (general-setq minibuffer-prompt-properties
+                        '(read-only t face minibuffer-prompt intangible t cursor-intangible t))
+          (general-add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)))
 
 (use-package vertico-directory
   :ensure nil
@@ -316,8 +318,8 @@ TARGET should be a quoted mode"
   (setq consult-narrow-key "<")
 
   (after! (evil)
-	  (setq evil-jumps-cross-buffers nil)
-	  (evil-set-command-property 'consult-line :jump t)))
+          (setq evil-jumps-cross-buffers nil)
+          (evil-set-command-property 'consult-line :jump t)))
 
 (use-package consult-flycheck
   :ensure t
@@ -355,8 +357,8 @@ TARGET should be a quoted mode"
 
   :config
   (setq corfu-auto      t
-	corfu-auto-delay  0.2
-	corfu-auto-prefix 2)
+        corfu-auto-delay  0.2
+        corfu-auto-prefix 2)
 
   ;; (add-hook 'corfu-mode-hook
   ;;           (lambda ()
@@ -439,14 +441,14 @@ TARGET should be a quoted mode"
   :ensure t
   :config
   (after! (eglot)
-	  (add-hook 'rust-mode-hook 'eglot-ensure)
-	  (add-to-list 'eglot-server-programs
-		       '(rust-mode . ("rust-analyzer"))))
+          (add-hook 'rust-mode-hook 'eglot-ensure)
+          (add-to-list 'eglot-server-programs
+                       '(rust-mode . ("rust-analyzer"))))
   (after! (apheleia)
-	  (setf (alist-get 'rust-mode apheleia-mode-alist) 'rustfmt)
-	  (setf (alist-get 'rustfmt apheleia-formatters) '("rustfmt" "--edition" "2021")))
+          (setf (alist-get 'rust-mode apheleia-mode-alist) 'rustfmt)
+          (setf (alist-get 'rustfmt apheleia-formatters) '("rustfmt" "--edition" "2021")))
   (after! (tree-sitter-langs)
-	  (setq rust-mode-treesitter-derive t))
+          (setq rust-mode-treesitter-derive t))
   (setq rust-cargo-default-arguments "--color=never"))
 
 ;; (use-package rustic
@@ -474,11 +476,11 @@ TARGET should be a quoted mode"
   :config
   ;; (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode))
   (after! (apheleia)
-	  (setf (alist-get 'nix-ts-mode apheleia-mode-alist) 'nixfmt)
-	  (setf (alist-get 'nixfmt apheleia-formatters)
-		'("nixfmt" "-"))))
+          (setf (alist-get 'nix-ts-mode apheleia-mode-alist) 'nixfmt)
+          (setf (alist-get 'nixfmt apheleia-formatters)
+                '("nixfmt" "-"))))
 
-;; ;; =============================================================================
+;; =============================================================================
 ;;                                    LSP
 ;; =============================================================================
 
@@ -564,10 +566,10 @@ TARGET should be a quoted mode"
   :ensure t
   :config
   (setq ranger-show-hidden t
-	ranger-preview-delay 0.1
-	ranger-width-parents 0.16
-	ranger-width-preview 0.5
-	ranger-max-preview-size 10))
+        ranger-preview-delay 0.1
+        ranger-width-parents 0.16
+        ranger-width-preview 0.5
+        ranger-max-preview-size 10))
 
 (use-package all-the-icons
   :ensure t
@@ -691,7 +693,7 @@ TARGET should be a quoted mode"
   (unless (file-exists-p "~/Sync/org")
     (make-directory "~/Sync/org" t))
   (setq org-blank-before-new-entry
-	'((heading . nil)    ;; No blank line before new headings
+        '((heading . nil)    ;; No blank line before new headings
           (plain-list-item . nil)))  ;; No blank line before new items
   (setq org-directory "~/Sync/org"
         org-agenda-files '("~/Sync/org/agenda.org")))
@@ -796,7 +798,7 @@ TARGET should be a quoted mode"
             (lambda ()
               (setq-local mode-line-format nil)))
   (setq which-key-show-mode-line nil
-	which-key-allow-imprecise-window-fit nil)
+        which-key-allow-imprecise-window-fit nil)
   ;; Allow C-h to trigger which-key before it is done automatically
   (setq which-key-show-early-on-C-h t)
   ;; Make sure which-key buffer is always below minibuffer
