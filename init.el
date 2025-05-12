@@ -151,8 +151,13 @@ TARGET should be a quoted mode"
   :init (doom-modeline-mode 1)
   :config
   (setq doom-modeline-time-clock-size 3.0
+        ;; doom-modeline-hud t
+        doom-modeline-always-show-macro-register t
+        doom-modeline-buffer-encoding 'non-default
+        doom-modeline-buffer-file-name-style 'relative-from-project
         doom-modeline-height 5)
-  (display-time-mode 1)
+
+  ;; (display-time-mode 1)
   (column-number-mode 1))
 
 (use-package hl-todo
