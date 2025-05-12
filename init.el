@@ -833,6 +833,7 @@ TARGET should be a quoted mode"
                      ":" #'eval-last-sexp
                      "a" #'lsp-execute-code-action
                      "k" #'lsp-ui-doc-glance
+                     "r" #'lsp-rename
                      ;; Buffers
                      "b b" #'consult-buffer
                      "b d" '("Kill current buffer." . kill-current-buffer)
