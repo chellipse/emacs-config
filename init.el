@@ -505,9 +505,11 @@ TARGET should be a quoted mode"
   (lsp-rust-analyzer-cargo-load-out-dirs-from-check t)
   (lsp-rust-analyzer-proc-macro-enable t)
   :config
+  (setq lsp-completion-provider :none
+        lsp-auto-configure t)
   ;; lsp-deferred is supposed to help with catching the right envrc env, but it
   ;; doesn't seem to
-  (add-hook! (nix-mode-hook rust-mode-hook) #'lsp-deferred))
+  (add-hook! (nix-mode-hook rust-mode-hook c-mode-hook) #'lsp-deferred))
 
 (use-package lsp-ui
   :ensure t
@@ -518,7 +520,13 @@ TARGET should be a quoted mode"
   :config
   (setq lsp-ui-doc-include-signature t)
   (setq lsp-ui-doc-max-width 150
-        lsp-ui-doc-max-height 24))
+        lsp-ui-doc-max-height 40))
+
+;; Used for lsp-mode code actions and stuff
+(use-package yasnippet
+  :ensure t
+  :config
+  (yas-global-mode 1))
 
 ;; =============================================================================
 ;;                               Project Management
@@ -821,6 +829,8 @@ TARGET should be a quoted mode"
         (map-leader! :n '(global evil-mode-map) "SPC"
                      ";" #'eval-expression
                      ":" #'eval-last-sexp
+                     "a" #'lsp-execute-code-action
+                     "k" #'lsp-ui-doc-glance
                      ;; Buffers
                      "b b" #'consult-buffer
                      "b d" '("Kill current buffer." . kill-current-buffer)
@@ -876,12 +886,17 @@ TARGET should be a quoted mode"
                     ;; normally, so this is a workaround for now
                     "C-c C-c" 'vterm--self-insert
                     "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0)))
-        (map-leader! :n rust-mode-map "SPC"
-                     "b" #'rust-compile
-                     "r" #'rust-run
-                     "t" #'rust-test
-                     "c" #'rust-check)
-        (map-after! (lsp-ui) :n lsp-ui-mode-map
+        (map-leader-after! (rust-mode) :n rust-mode-map "SPC"
+                           "x" #'lsp-rust-analyzer-run
+                           "b" #'rust-compile
+                           "r" #'rust-run
+                           "t" #'rust-test
+                           "c" #'rust-check)
+        (map-after! (lsp-mode lsp-ui) :n lsp-ui-mode-map
+                    "g y" #'lsp-goto-type-definition
+                    "g i" #'lsp-goto-implementation
+                    "g d" #'evil-goto-definition
+                    "," #'lsp-ui-doc-toggle
                     "." #'lsp-ui-doc-glance)
         (map! :n ranger-mode-map
               "DEL" #'ranger-toggle-dotfiles)
