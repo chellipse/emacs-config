@@ -221,6 +221,7 @@ TARGET should be a quoted mode"
   (setq evil-undo-system 'undo-tree
         evil-want-integration t
         evil-want-keybinding nil
+        evil-flash-delay 10 ;; Search flash after n/N. Default: 2 (seconds)
         evil-want-C-u-scroll t
         evil-want-C-i-jump t)
   :config
@@ -230,6 +231,7 @@ TARGET should be a quoted mode"
   :ensure t
   :after evil
   :config
+  (setq evil-collection-want-unimpaired-p nil)
   (evil-collection-init))
 
 (use-package evil-goggles
@@ -856,9 +858,9 @@ TARGET should be a quoted mode"
                      "w s" #'evil-window-split
                      "w v" #'evil-window-vsplit)
         (map-leader-after! (evil) :n '(global evil-mode-map) "f"
-                           "b" 'consult-buffer
+                           "f" 'consult-buffer
                            "l" 'consult-line
-                           "f" 'consult-fd
+                           "d" 'consult-fd
                            "r" 'consult-ripgrep
                            "m" 'consult-imenu
                            "o" 'consult-org-heading
@@ -880,7 +882,7 @@ TARGET should be a quoted mode"
                     "M-;" #'evil-window-right
                     "U" #'evil-redo)
         ;; Modal
-        (map-after! (evil-collection) :nv vterm-mode-map
+        (map-after! (vterm evil-collection) :n vterm-mode-map
                     "C-d" 'vterm--self-insert
                     ;; NOTE: evil-collection binds C-c C-z to evil-collection-vterm-toggle-send-escape
                     ;; normally, so this is a workaround for now
