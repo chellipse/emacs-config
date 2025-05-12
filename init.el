@@ -98,7 +98,8 @@ TARGET should be a quoted mode"
 (set-face-attribute 'variable-pitch nil
                     :family "Iosekva Pro")
 
-(add-to-list 'default-frame-alist '(alpha-background . 90))
+(setq default-frame-alpha 90)
+(add-to-list 'default-frame-alist `(alpha-background . ,default-frame-alpha))
 
 (setq frame-resize-pixelwise t
       window-resize-pixelwise t)
@@ -852,6 +853,9 @@ TARGET should be a quoted mode"
         (map-after! (evil) :n '(global evil-mode-map)
                     "9" (cmd! (scroll-up 18))
                     "0" (cmd! (scroll-down 18))
+                    "M--" (cmd! (set-frame-parameter nil 'alpha-background (- (frame-parameter nil 'alpha-background) 1)))
+                    "M-=" (cmd! (set-frame-parameter nil 'alpha-background (+ (frame-parameter nil 'alpha-background) 1)))
+                    "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
                     "C-=" (cmd! (set-face-attribute 'default nil :height base-font-height))
                     "C-+" #'increase-global-font-size
                     "C--" #'decrease-global-font-size
