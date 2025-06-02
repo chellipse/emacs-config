@@ -1,6 +1,7 @@
 *
 !.gitignore
-!README.org
+!README.md
+!TODO.org
 !early-init.el
 !init.el
 !lib.el

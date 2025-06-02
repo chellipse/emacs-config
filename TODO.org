@@ -1,0 +1,2 @@
+* Next
+** TODO move most of init.el into config.org
