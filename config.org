@@ -919,6 +919,8 @@ to be quoted."
 #+begin_src emacs-lisp
 (use-package cape
   :ensure t
+  :config
+  (add-to-list 'completion-at-point-functions #'cape-elisp-block)
   :hook (org-mode . (lambda ()
                       (add-to-list 'completion-at-point-functions
                                    #'cape-file))))
