@@ -1196,6 +1196,9 @@ SCOPE can be:
 (use-package treemacs
   :ensure t
   :defer t
+  :hook (treemacs-mode . (lambda ()
+                       (setq-local truncate-lines t)
+                       (setq-local word-wrap nil)))
   :config
   (progn
     (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
@@ -1247,7 +1250,7 @@ SCOPE can be:
           treemacs-user-mode-line-format           nil
           treemacs-user-header-line-format         nil
           treemacs-wide-toggle-width               70
-          treemacs-width                           35
+          treemacs-width                           30
           treemacs-width-increment                 1
           treemacs-width-is-initially-locked       t
           treemacs-workspace-switch-cleanup        nil)
