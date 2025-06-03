@@ -4,9 +4,9 @@
 !TODO.org
 !early-init.el
 !init.el
-!lib.el
+!config.org
 !elpaca.lock
 !banners
 !banners/**
-!modules
-!modules/**
+!snippets
+!snippets/**
