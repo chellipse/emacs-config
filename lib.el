@@ -55,15 +55,15 @@ to be quoted."
      :states ,(if (and (listp states)
                        (eq (car states) 'quote))
                   `,states
-		`',states)
+		        `',states)
      :keymaps ,(if (and (listp keymaps)
-			(eq (car keymaps) 'quote))
+			            (eq (car keymaps) 'quote))
                    `,keymaps
                  `',keymaps)
      :prefix ,(if (and (listp prefix)
                        (eq (car prefix) 'quote))
                   `,prefix
-		`',prefix)
+		        `',prefix)
      ,@args))
 
 (defmacro map! (states mode &rest body)
@@ -83,19 +83,20 @@ to be quoted."
   `(after! ,files (my-general-evil-define-key ,(doom--map-keyword-to-states states) ,mode ,leader ,@body)))
 
 ;; FONT HEIGHT
+(defun refresh-global-font-size ()
+  (interactive)
+  (let ((height (* font-size 10)))
+    (set-face-attribute 'default nil :height height)))
 
-(setq font-height-increment 15)
-
-;; NOTE: afaik height is rounded after set, so these probably aren't associative
 (defun increase-global-font-size ()
   (interactive)
-  (let ((current-size (face-attribute 'default :height)))
-    (set-face-attribute 'default nil :height (+ current-size font-height-increment))))
+  (setq font-size (+ font-size 1))
+  (refresh-global-font-size))
 
 (defun decrease-global-font-size ()
   (interactive)
-  (let ((current-size (face-attribute 'default :height)))
-    (set-face-attribute 'default nil :height (- current-size font-height-increment))))
+  (setq font-size (- font-size 1))
+  (refresh-global-font-size))
 
 ;; WEB
 

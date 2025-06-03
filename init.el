@@ -66,6 +66,14 @@
 ;;                                     Core
 ;; =============================================================================
 
+(use-package general :ensure (:wait t) :demand t
+  :config
+  (general-evil-setup))
+
+(defmacro load! (file)
+  "Load user-emacs-directory/FILE."
+  `(load-file (concat (expand-file-name user-emacs-directory) ,file)))
+
 (defmacro after! (files &rest body)
   "Eval BODY after loading all FILES."
   (if (null files)
@@ -86,19 +94,38 @@ TARGET should be a quoted mode"
 ;;                                      UI
 ;; =============================================================================
 
+;; (setq default-font-mono "Iosevka Pro"
+;;       default-font-propo "Iosevka Nerd Font Propo")
+(setq default-font-mono "RobotoMono Nerd Font"
+      default-font-propo "Roboto")
+
+(setq default-font-size 14)
+(unless (boundp 'font-size)
+  (setq font-size default-font-size))
+(set-face-attribute 'default nil
+                    :height (* font-size 10)
+                    :family default-font-mono)
+(set-face-attribute 'variable-pitch nil
+                    :family default-font-propo)
+
+(load-theme 'modus-operandi)
+
+;; (load! "modules/ui/doom.el")
+(load! "modules/ui/doom-modeline.el")
+;; (load! "modules/ui/spacemacs.el")
+;; (load! "modules/ui/nano.el")
+
 (setq-default indent-tabs-mode nil tab-width 4)
 
 (setq large-file-warning-threshold (* 1000 1000 50))
 
 (pixel-scroll-precision-mode)
+(setq scroll-conservatively 1000
+      scroll-preserve-screen-position 'always)
 
-(setq base-font-height 140)
-(set-face-attribute 'default nil
-                    :family "Iosevka Pro")
-(set-face-attribute 'variable-pitch nil
-                    :family "Iosekva Pro")
+(global-hl-line-mode 1)
 
-(setq default-frame-alpha 90)
+(setq default-frame-alpha 100)
 (add-to-list 'default-frame-alist `(alpha-background . ,default-frame-alpha))
 
 (setq frame-resize-pixelwise t
@@ -129,37 +156,6 @@ TARGET should be a quoted mode"
 
 (global-whitespace-mode 1)
 
-;; (use-package spacemacs-theme
-;;   :ensure t
-;;   :init
-;;   (load-theme 'spacemacs-dark t))
-
-(use-package doom-themes
-  :ensure t
-  :config
-  (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
-        doom-themes-enable-italic t) ; if nil, italics is universally disabled
-  (load-theme 'doom-one t)
-  ;; (doom-themes-visual-bell-config)
-  ;; (doom-themes-neotree-config)
-  ;; (setq doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
-  ;; (doom-themes-treemacs-config)
-  (doom-themes-org-config))
-
-(use-package doom-modeline
-  :ensure t
-  :init (doom-modeline-mode 1)
-  :config
-  (setq doom-modeline-time-clock-size 3.0
-        ;; doom-modeline-hud t
-        doom-modeline-always-show-macro-register t
-        doom-modeline-buffer-encoding 'non-default
-        doom-modeline-buffer-file-name-style 'relative-from-project
-        doom-modeline-height 5)
-
-  ;; (display-time-mode 1)
-  (column-number-mode 1))
-
 (use-package hl-todo
   :ensure t
   :config
@@ -180,15 +176,14 @@ TARGET should be a quoted mode"
   :init
   (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
 
-(setq title-list '("Coping with radical novelty requires an orthogonal method. One must consider one's own past, the experiences collected, and the habits formed in it as an unfortunate accident of history, and one has to approach the radical novelty with a blank mind, consciously refusing to try to link it with what is already familiar, because the familiar is hopelessly inadequate. One has, with initially a kind of split personality, to come to grips with a radical novelty as a dissociated topic in its own right. Coming to grips with a radical novelty amounts to creating and learning a new foreign language that can not be translated into one's mother tongue. (Any one who has learned quantum mechanics knows what I am talking about.) Needless to say, adjusting to radical novelties is not a very popular activity, for it requires hard work. For the same reason, the radical novelties themselves are unwelcome. - Dijkstra"
-                   "The lesson I learned is that you can wildly, drastically improve brain interconnectivity and neuroplasticity by being obsessed with practicing a skill that you’re absolutely terrible at, for two months. - Tater Tot"))
 
 ;; TODO add a hook to reopen the buffer if it doesn't exit when another is deleted
 (use-package dashboard
   :ensure t
   :config
-  (setq dashboard-banner-logo-title
-        (nth (random (length title-list)) title-list))
+  ;; (defvar title-list nil)
+  ;; (setq dashboard-banner-logo-title
+  ;;       (nth (random (length title-list)) title-list))
   (setq dashboard-startup-banner
         (let* ((img-file (expand-file-name "~/Sync/emacs.jpg"))
                (txt-file (expand-file-name "banners/looking.txt" user-emacs-directory))
@@ -209,6 +204,16 @@ TARGET should be a quoted mode"
   ;; end up with the dashboard in one window
   (if (>= 1 (length command-line-args)) (setq initial-buffer-choice (lambda () (get-buffer-create dashboard-buffer-name))))
   (dashboard-setup-startup-hook))
+
+(use-package writeroom-mode
+  :ensure t
+  :config
+  (setq writeroom-width 120))
+
+(use-package diff-hl
+  :ensure t
+  :config
+  (global-diff-hl-mode))
 
 ;; =============================================================================
 ;;                                     Evil
@@ -272,7 +277,7 @@ TARGET should be a quoted mode"
   :ensure t
   :custom
   ;; (vertico-scroll-margin 0) ;; Different scroll margin
-  (vertico-count 20) ;; Show more candidates
+  (vertico-count 15) ;; Show more candidates
   ;; (vertico-resize t) ;; Grow and shrink the Vertico minibuffer
   ;; (vertico-cycle t) ;; Enable cycling for `vertico-next/previous'
   :init
@@ -333,6 +338,9 @@ TARGET should be a quoted mode"
   :ensure t
   :after consult flycheck)
 
+(use-package rainbow-mode
+  :ensure t)
+
 (use-package marginalia
   :ensure t
   :after vertico
@@ -350,7 +358,8 @@ TARGET should be a quoted mode"
 (use-package corfu
   :ensure t
   :custom
-  (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
+  (corfu-cycle t)           ;; Enable cycling for `corfu-next/previous'
+  (corfu-preselect 'prompt) ;; Always preselect the prompt
 
   ;; Use TAB for cycling, default is `corfu-complete'.
   :bind
@@ -361,12 +370,14 @@ TARGET should be a quoted mode"
         ([backtab] . corfu-previous))
 
   :init
-  (global-corfu-mode) ;; Enable Corfu globally
+  (global-corfu-mode)
+  (corfu-popupinfo-mode 1)
 
   :config
   (setq corfu-auto      t
         corfu-auto-delay  0.2
-        corfu-auto-prefix 2)
+        corfu-auto-prefix 2
+        corfu-popupinfo-delay 0.5)
 
   ;; (add-hook 'corfu-mode-hook
   ;;           (lambda ()
@@ -396,6 +407,12 @@ TARGET should be a quoted mode"
           orderless-prefixes
           orderless-initialism
           orderless-regexp)))
+
+(use-package cape
+  :ensure t
+  :hook (org-mode . (lambda ()
+                      (add-to-list 'completion-at-point-functions
+                                   #'cape-file))))
 
 ;; =============================================================================
 ;;                                  Programming
@@ -447,7 +464,63 @@ TARGET should be a quoted mode"
 
 (use-package rust-mode
   :ensure t
+  :after (general lib)
   :config
+  (defun rust-current-crate-name ()
+    "Get the name of the current crate by parsing Cargo.toml in the crate directory."
+    (let ((crate-dir (rust-buffer-crate)))
+      (when crate-dir
+        (let ((cargo-toml (expand-file-name "Cargo.toml" crate-dir)))
+          (when (file-exists-p cargo-toml)
+            (with-temp-buffer
+              (insert-file-contents cargo-toml)
+              (goto-char (point-min))
+              (when (re-search-forward "^name\\s-*=\\s-*\"\\([^\"]+\\)\"" nil t)
+                (match-string 1))))))))
+
+  (defmacro cargo-cmd! (cmd &key scope)
+    "Generate a lambda that calls rust--compile with CMD as the cargo subcommand.
+SCOPE can be:
+  'workspace - adds --workspace flag
+  'package   - adds --package with current crate name
+  anything else or nil - uses raw command with no package/workspace flags"
+    `(lambda ()
+       (interactive)
+       (cond
+        ((eq ,scope 'workspace)
+         (rust--compile nil
+                        ,(concat "%s " cmd " --workspace %s")
+                        rust-cargo-bin
+                        rust-cargo-default-arguments))
+        ((eq ,scope 'package)
+         (let ((crate-name (rust-current-crate-name)))
+           (if crate-name
+               (rust--compile nil
+                              ,(concat "%s " cmd " --package %s %s")
+                              rust-cargo-bin
+                              crate-name
+                              rust-cargo-default-arguments)
+             (rust--compile nil
+                            ,(concat "%s " cmd " %s")
+                            rust-cargo-bin
+                            rust-cargo-default-arguments))))
+        (t
+         (rust--compile nil
+                        ,(concat "%s " cmd " %s")
+                        rust-cargo-bin
+                        rust-cargo-default-arguments)))))
+
+  (map-leader! :n rust-mode-map "SPC"
+               "c x" #'lsp-rust-analyzer-run
+               "c r" (cargo-cmd! "run" :scope 'package)
+               "c R" (cargo-cmd! "run --release" :scope 'package)
+               "c b" (cargo-cmd! "build" :scope 'workspace)
+               "c B" (cargo-cmd! "build --release" :scope 'workspace)
+               "c t" (cargo-cmd! "test" :scope 'package)
+               "c T" (cargo-cmd! "test" :scope 'workspace)
+               "c c" (cargo-cmd! "check" :scope 'package)
+               "c C" (cargo-cmd! "check" :scope 'workspace))
+
   (after! (eglot)
           (add-hook 'rust-mode-hook 'eglot-ensure)
           (add-to-list 'eglot-server-programs
@@ -508,6 +581,7 @@ TARGET should be a quoted mode"
   (lsp-rust-analyzer-proc-macro-enable t)
   :config
   (setq lsp-completion-provider :none
+        lsp-lens-enable nil
         lsp-auto-configure t)
   ;; lsp-deferred is supposed to help with catching the right envrc env, but it
   ;; doesn't seem to
@@ -520,6 +594,10 @@ TARGET should be a quoted mode"
   (lsp-ui-doc-position 'at-point)
   (lsp-ui-doc-enable)
   :config
+  (set-face-attribute 'lsp-ui-doc-background nil
+                      :background nil)
+  (add-hook 'server-after-make-frame-hook (lambda () (set-face-attribute 'lsp-ui-doc-background nil
+                                                                         :background nil)))
   (setq lsp-ui-doc-include-signature t)
   (setq lsp-ui-doc-max-width 150
         lsp-ui-doc-max-height 40))
@@ -695,7 +773,111 @@ TARGET should be a quoted mode"
   :ensure t)
 
 (use-package w3m
-  :ensure t)
+  :ensure t
+  :config
+  (add-hook 'w3m-mode-hook (lambda () (setq-local display-line-numbers nil))))
+
+(use-package gptel
+  :ensure t
+  :config
+  (setq gptel-default-mode 'org-mode
+        gptel-track-media t
+        gptel-org-branching-context t
+        gptel-expert-commands t
+        gptel-directives '((default
+                            . "You are a large language model living in Emacs and a helpful assistant. Repond using these key communication principles.
+
+Key Communication Principles:
+* Strictly avoid using analogies; instead, employ precise technical language
+* Avoid sycophantic language or appeals to the reader, prioritize logic
+* Structure information like a scientific paper, ie with rigorous logical structure
+* Correctness comes before pleasantry
+* Maintain scholarly objectivity
+* Communicate through direct, unambiguous technical language that eliminates interpretative ambiguity.")
+                           (programming
+                            . "You are a large language model and a careful programmer. Provide code and only code as output without any additional text, prompt or note.")
+                           (writing
+                            . "You are a large language model and a writing assistant. Respond concisely.")
+                           (chat
+                            . "You are a large language model and a conversation partner. Respond concisely."))
+        gptel-model 'mistral-nemo:latest
+        gptel-backend (gptel-make-ollama "Ollama"
+                        :host "localhost:11434"
+                        :stream t
+                        :models
+                        '(qwen3:0.6b
+                          qwen3:1.7b
+                          qwen3:4b
+                          qwen3:8b
+                          qwen3:14b
+                          qwen2.5:14b
+                          mistral-nemo:latest
+                          mistral-small:22b
+                          mistral-small:22b-instruct-2409-q3_K_S
+                          mistral-small:22b-instruct-2409-q3_K_L
+                          mistral-small:22b-instruct-2409-q3_K_M
+                          (mistral-small3.1:latest . (
+                                                      :capabilities (media)
+                                                      :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
+                          (gemma3:4b . (
+                                        :capabilities (media)
+                                        :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
+                          (gemma3:12b . (
+                                         :capabilities (media)
+                                         :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
+                          deepseek-r1:1.5b
+                          deepseek-r1:14b
+                          phi4-mini:latest
+                          phi4:latest
+                          deepseek-r1:8b
+                          mistral:instruct
+                          mistral:text
+                          mistral:latest
+                          llama3.2:latest))))
+
+
+(use-package elfeed
+  :ensure t
+  :config
+  (setq elfeed-search-filter "@2-week-ago"
+        ;; elfeed-show-entry-switch #'pop-to-buffer
+        elfeed-feeds '(
+                       ("https://loginasroot.net/rss.xml" friend)
+                       ("https://alicemaz.substack.com/feed" friend software)
+                       ("https://faroffunhappythings.com/?feed=rss2" FOUT)
+                       ("https://www.kenklippenstein.com/feed" journalism)
+                       ("https://xkcd.com/atom.xml" comic)
+                       ("https://fasterthanli.me/index.xml" rust)
+                       ("https://lwn.net/headlines/rss" linux oss)
+                       ("https://cafkafk.dev/index.xml" software)
+                       ("https://www.lineageos.org/feed-engineering.xml" android)
+                       ("https://research.google/blog/rss/" google)
+                       ("https://deepmind.google/blog/rss.xml" google ml)
+                       ("https://terrytao.wordpress.com/feed/" math)
+                       ("https://karthinks.com/software/index.xml" emacs)
+                       ("https://parakeet.substack.com/feed" tpot)
+                       ;; ("")
+
+                       ("https://thahxa.tumblr.com/rss" friend tumblr)
+                       ("https://centrally-unplanned.tumblr.com/rss" tumblr)
+                       ("https://vren-diagram.tumblr.com/rss" tumblr)
+                       ("https://phaeton-flier.tumblr.com/rss" tumblr)
+                       ("https://transgenderer.tumblr.com/rss" tumblr)
+                       ("https://wildgifthorses.tumblr.com/rss" tumblr)
+                       ("https://autogeneity.tumblr.com/rss" tumblr)
+
+                       ("https://www.helius.dev/blog/rss.xml" solana)
+                       ("https://apfitzge.github.io/index.xml#feed" solana)
+
+                       ("https://danluu.com/atom.xml" programming industry)
+                       ("https://www.kalzumeus.com/feed/articles/" finance industry)
+                       ("https://www.thediff.co/archive/rss/" finance)
+                       ("https://rss.beehiiv.com/feeds/JyXsSUwlAE.xml" finance)
+                       ("https://www.bloomberg.com/authors/ARbTQlRLRjE/matthew-s-levine.rss" finance)
+                       ("https://www.bitsaboutmoney.com/archive/rss/" finance industry)
+                       ("https://feeds.transistor.fm/complex-systems-with-patrick-mckenzie-patio11" finance industry)
+                       ;; ("")
+                       )))
 
 ;; =============================================================================
 ;;                                   Org Mode
@@ -704,6 +886,44 @@ TARGET should be a quoted mode"
 (use-package org
   :ensure t
   :config
+  (setq org-preview-latex-image-directory "/tmp/ltximg/"
+        org-preview-latex-default-process 'luadvisvgm)
+  (add-to-list 'org-preview-latex-process-alist
+               '(luadvisvgm :programs
+                            ("lualatex" "dvisvgm")
+                            :description "dvi > svg" :message "you need to install the programs: lualatex and dvisvgm." :image-input-type "dvi" :image-output-type "svg" :image-size-adjust
+                            (1.7 . 1.5)
+                            :latex-compiler
+                            ("lualatex --output-format dvi --shell-escape --interaction=nonstopmode --output-directory=%o %f")
+                            :image-converter
+                            ("dvisvgm %f -n -b min -c %S -o %O"))
+               )
+
+
+  (defun my-org-latex-preview-at-point ()
+    "Preview LaTeX fragment at point when using C-c C-c."
+    (when (org-inside-LaTeX-fragment-p)
+      (org-latex-preview)
+      t))  ; Return t to prevent other C-c C-c actions
+  (add-hook 'org-ctrl-c-ctrl-c-hook #'my-org-latex-preview-at-point)
+
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((gnuplot . t)))
+
+  (add-hook 'org-babel-after-execute-hook 'org-display-inline-images)
+
+  (setq org-confirm-babel-evaluate
+        (lambda (lang body)
+          (not (member lang '("gnuplot" "rust")))))
+
+  (defun my-gnuplot-unique-filename ()
+    "Generate unique filename for gnuplot output."
+    (concat "/tmp/plot-" (format-time-string "%s-%N") ".png"))
+
+  (setq org-format-latex-options
+        (plist-put org-format-latex-options :scale 1.25))
+
   (add-hook 'org-mode-hook (lambda () (setq-local fill-column 100)))
   (add-hook 'org-mode-hook #'org-indent-mode)
   (unless (file-exists-p "~/Sync/org")
@@ -749,6 +969,16 @@ TARGET should be a quoted mode"
   :config
   (add-hook 'org-mode-hook #'org-appear-mode))
 
+(use-package gnuplot
+  :ensure t
+  :after org)
+
+(use-package org-fragtog
+  :ensure t
+  :after org
+  :config
+  (add-hook 'org-mode-hook #'org-fragtog-mode))
+
 ;; =============================================================================
 ;;                                 Odds and Ends
 ;; =============================================================================
@@ -791,11 +1021,6 @@ TARGET should be a quoted mode"
 ;; =============================================================================
 ;;                                     Maps
 ;; =============================================================================
-
-(use-package general
-  :ensure t
-  :config
-  (general-evil-setup))
 
 (use-package which-key
   :ensure t
@@ -845,6 +1070,7 @@ TARGET should be a quoted mode"
                      "f r" '("Open a recent file!" . consult-recent-file)
                      ;; Open
                      "o e" '("Open Eshell!" . eshell)
+                     "o g" #'gptel
                      "o r" '("Open Ranger!" . ranger)
                      "o m" '("Open a MAGIT!" . magit)
                      "o t" '("Open Treemacs!" . treemacs)
@@ -857,7 +1083,11 @@ TARGET should be a quoted mode"
                      "w k" #'evil-window-up
                      "w l" #'evil-window-right
                      "w s" #'evil-window-split
-                     "w v" #'evil-window-vsplit)
+                     "w v" #'evil-window-vsplit
+                     ;; Zen
+                     "z i" #'writeroom-increase-width
+                     "z d" #'writeroom-decrease-width
+                     "z z" #'writeroom-mode)
         (map-leader-after! (evil) :n '(global evil-mode-map) "f"
                            "f" 'consult-buffer
                            "l" 'consult-line
@@ -867,15 +1097,21 @@ TARGET should be a quoted mode"
                            "o" 'consult-org-heading
                            "d" (cmd! (funcall dynamic-diagnostic-fn)))
         (map-after! (evil) :nv '(global evil-mode-map)
+                    ;; "d" #'evil-delete-char
+                    "g e" #'evil-goto-line
                     "t" #'comment-line)
+        (map-after! (evil) :v '(global evil-mode-map)
+                    ;; "x" #'evil-next-line
+                    )
         (map-after! (evil) :n '(global evil-mode-map)
+                    ;; "x" #'evil-visual-line
                     "9" (cmd! (scroll-up 18))
                     "0" (cmd! (scroll-down 18))
-                    "M--" (cmd! (set-frame-parameter nil 'alpha-background (- (frame-parameter nil 'alpha-background) 1)))
-                    "M-=" (cmd! (set-frame-parameter nil 'alpha-background (+ (frame-parameter nil 'alpha-background) 1)))
                     "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
-                    "C-=" (cmd! (set-face-attribute 'default nil :height base-font-height))
-                    "C-+" #'increase-global-font-size
+                    "M-=" (cmd! (set-frame-parameter nil 'alpha-background (+ (frame-parameter nil 'alpha-background) 1)))
+                    "M--" (cmd! (set-frame-parameter nil 'alpha-background (- (frame-parameter nil 'alpha-background) 1)))
+                    "C-+" (cmd! (setq font-size default-font-size) (refresh-global-font-size))
+                    "C-=" #'increase-global-font-size
                     "C--" #'decrease-global-font-size
                     "M-j" #'evil-window-left
                     "M-k" #'evil-window-down
@@ -889,12 +1125,6 @@ TARGET should be a quoted mode"
                     ;; normally, so this is a workaround for now
                     "C-c C-c" 'vterm--self-insert
                     "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0)))
-        (map-leader-after! (rust-mode) :n rust-mode-map "SPC"
-                           "x" #'lsp-rust-analyzer-run
-                           "b" #'rust-compile
-                           "r" #'rust-run
-                           "t" #'rust-test
-                           "c" #'rust-check)
         (map-after! (lsp-mode lsp-ui) :n lsp-ui-mode-map
                     "g y" #'lsp-goto-type-definition
                     "g i" #'lsp-goto-implementation
@@ -905,20 +1135,27 @@ TARGET should be a quoted mode"
               "DEL" #'ranger-toggle-dotfiles)
         (map! :n eww-mode-map
               "H" #'eww-back-url)
-        (map-after! (org evil-org) :ni '(org-mode-map evil-org-mode-map)
-                    ;; NOTE: These are for manipulating subtrees, it is beyond me why the naming
-                    ;; convention is like this
-                    "C-h" #'org-shiftmetaleft
-                    "C-j" #'org-metadown
-                    "C-k" #'org-metaup
-                    "C-l" #'org-shiftmetaright)
+        ;; FIXME: these things break certain binds since org-mode binds depend on what element the cursor is over
+        ;; so we need to figure something better out if these are gonna work without messing things up
+        ;; (map-after! (org evil-org) :ni '(org-mode-map evil-org-mode-map)
+        ;;             ;; NOTE: These are for manipulating subtrees, it is beyond me why the naming
+        ;;             ;; convention is like this
+        ;;             "C-h" #'org-shiftmetaleft
+        ;;             "C-j" #'org-metadown
+        ;;             "C-k" #'org-metaup
+        ;;             "C-l" #'org-shiftmetaright)
+        (map! :n elfeed-show-mode-map
+              "<up>" 'elfeed-show-prev
+              "<down>" 'elfeed-show-next)
         )
 
 ;; =============================================================================
 ;;                                     Footer
 ;; =============================================================================
 
-(load-file (expand-file-name "lib.el" (file-name-directory load-file-name)))
+(load! "lib.el")
+
+(elpaca-process-queues)
 
 (provide 'init)
 ;;; init.el ends here

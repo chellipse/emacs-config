@@ -7,4 +7,6 @@
 !lib.el
 !elpaca.lock
 !banners
-!banners/*
+!banners/**
+!modules
+!modules/**
