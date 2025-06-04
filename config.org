@@ -1217,9 +1217,10 @@ SCOPE can be:
 (use-package treemacs
   :ensure t
   :defer t
-  :hook (treemacs-mode . (lambda ()
-                       (setq-local truncate-lines t)
-                       (setq-local word-wrap nil)))
+  ;; NOTE: the naive version with a normal hook gets broken on config reload
+  :hook (buffer-list-update-hook . (lambda ()
+          (when (eq major-mode 'treemacs-mode)
+            (setq truncate-lines t))))
   :config
   (progn
     (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
