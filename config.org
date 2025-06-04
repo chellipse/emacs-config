@@ -969,7 +969,10 @@ to be quoted."
 (use-package apheleia
   :ensure t
   :config
-  (add-hook! (nix-mode-hook rust-mode-hook emacs-lisp-mode-hook) #'apheleia-mode))
+  (add-hook! (nix-ts-mode-hook
+              nix-mode-hook
+              rust-mode-hook
+              emacs-lisp-mode-hook) #'apheleia-mode))
 #+end_src
 ** =flycheck=
 #+begin_src emacs-lisp
@@ -1075,24 +1078,31 @@ SCOPE can be:
           (setq rust-mode-treesitter-derive t))
   (setq rust-cargo-default-arguments "--color=never"))
 #+end_src
-** =nix-mode=
-#+begin_src emacs-lisp
-(use-package nix-mode
-  :ensure t
-  :mode "\\.nix\\'")
-#+end_src
-** =nix-ts-mode= (just for command use by =apheleia=)
+** =nix-ts-mode=
 #+begin_src emacs-lisp
 (use-package nix-ts-mode
   :ensure t
+  :mode "\\.nix\\'"
   :custom
   (nix-nixfmt-bin "nixfmt")
   :config
-  ;; (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode))
   (after! (apheleia)
           (setf (alist-get 'nix-ts-mode apheleia-mode-alist) 'nixfmt)
           (setf (alist-get 'nixfmt apheleia-formatters)
                 '("nixfmt" "-"))))
+#+end_src
+** =fish-mode=
+#+begin_src emacs-lisp
+(use-package fish-mode
+  :ensure t
+  :after (lsp-mode)
+  :mode "\\.fish\\'"
+  :config
+  (lsp-register-client
+    (make-lsp-client
+    :new-connection (lsp-stdio-connection '("fish-lsp" "start"))
+    :major-modes '(fish-mode)
+    :server-id 'fish-language-server)))
 #+end_src
 * LSP
 ** =lsp-mode=
@@ -1103,12 +1113,21 @@ SCOPE can be:
   (lsp-rust-analyzer-cargo-load-out-dirs-from-check t)
   (lsp-rust-analyzer-proc-macro-enable t)
   :config
+  (lsp-register-client
+    (make-lsp-client
+    :new-connection (lsp-stdio-connection '("fish-lsp" "start"))
+    :major-modes '(fish-mode)
+    :server-id 'my-language-server))
   (setq lsp-completion-provider :none
         lsp-lens-enable nil
         lsp-auto-configure t)
-  ;; lsp-deferred is supposed to help with catching the right envrc env, but it
-  ;; doesn't seem to
-  (add-hook! (nix-mode-hook rust-mode-hook c-mode-hook) #'lsp-deferred))
+  ;; NOTE: lsp-deferred is required for catching the right envrc env
+  (add-hook! (python-mode-hook
+              nix-mode-hook
+              nix-ts-mode-hook
+              rust-mode-hook
+              c++-mode-hook
+              c-mode-hook) #'lsp-deferred))
 #+end_src
 ** =lsp-ui=
 #+begin_src emacs-lisp
