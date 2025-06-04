@@ -137,7 +137,6 @@ to be quoted."
 (defun reload-config ()
   "Reload the current config's init.el."
   (interactive)
-  (load-file (expand-file-name "lib.el" user-emacs-directory))
   (load-file (expand-file-name "init.el" user-emacs-directory)))
 
 (defun refresh-global-font-size ()
