@@ -1514,6 +1514,16 @@ Key Communication Principles:
 (setq org-directory "~/Sync/org"
       org-agenda-files '("~/Sync/org/agenda.org"))
 #+end_src
+** =org-roam=
+#+begin_src emacs-lisp
+(use-package org-roam
+  :ensure t
+  :config
+  (unless (file-exists-p "~/Sync/org-roam")
+    (make-directory "~/Sync/org-roam" t))
+  (setq org-roam-directory "~/Sync/org-roam")
+  (org-roam-db-autosync-mode))
+#+end_src
 ** =evil-org=
 #+begin_src emacs-lisp
 (use-package evil-org
