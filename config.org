@@ -1145,6 +1145,12 @@ SCOPE can be:
     :major-modes '(fish-mode)
     :server-id 'fish-language-server)))
 #+end_src
+** =c-mode=
+#+begin_src emacs-lisp
+(map-leader! :n c-mode-map "SPC"
+            "c x" #'compile
+            "c c" #'recompile)
+#+end_src
 * LSP
 ** =lsp-mode=
 #+begin_src emacs-lisp
