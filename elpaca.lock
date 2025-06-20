@@ -1,4 +1,38 @@
-((avy :source #1="elpaca-menu-lock-file" :recipe
+((websocket :source #1="elpaca-menu-lock-file" :recipe
+            (:package "websocket" :repo "ahyatt/emacs-websocket"
+                      :fetcher github :files
+                      ("*.el" "*.el.in" "dir" "*.info" "*.texi"
+                       "*.texinfo" "doc/dir" "doc/*.info" "doc/*.texi"
+                       "doc/*.texinfo" "lisp/*.el" "docs/dir"
+                       "docs/*.info" "docs/*.texi" "docs/*.texinfo"
+                       (:exclude ".dir-locals.el" "test.el" "tests.el"
+                                 "*-test.el" "*-tests.el" "LICENSE"
+                                 "README*" "*-pkg.el"))
+                      :source "MELPA" :protocol https :inherit t
+                      :depth treeless :ref
+                      "40c208eaab99999d7c1e4bea883648da24c03be3"))
+ (simple-httpd :source #1# :recipe
+               (:package "simple-httpd" :repo
+                         "skeeto/emacs-web-server" :fetcher github
+                         :files
+                         ("*.el" "*.el.in" "dir" "*.info" "*.texi"
+                          "*.texinfo" "doc/dir" "doc/*.info"
+                          "doc/*.texi" "doc/*.texinfo" "lisp/*.el"
+                          "docs/dir" "docs/*.info" "docs/*.texi"
+                          "docs/*.texinfo"
+                          (:exclude ".dir-locals.el" "test.el"
+                                    "tests.el" "*-test.el"
+                                    "*-tests.el" "LICENSE" "README*"
+                                    "*-pkg.el"))
+                         :source "MELPA" :protocol https :inherit t
+                         :depth treeless :ref
+                         "3982c55e9061475038a3ccd61aecb2de3d407cec"))
+ (emacsql :source #1# :recipe
+          (:package "emacsql" :fetcher github :repo "magit/emacsql"
+                    :files (:defaults "README.md" "sqlite") :source
+                    "MELPA" :protocol https :inherit t :depth treeless
+                    :ref "ced062890061b6e4fbe4d00c0617f7ff84fff25c"))
+ (avy :source #1# :recipe
       (:package "avy" :repo "abo-abo/avy" :fetcher github :files
                 ("*.el" "*.el.in" "dir" "*.info" "*.texi" "*.texinfo"
                  "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
@@ -81,6 +115,20 @@
                         "*-pkg.el"))
              :source #2# :protocol https :inherit t :depth treeless
              :ref "ca902ae02972bdd6919a902be2593d8cb6bd991b"))
+ (magit-section :source #1# :recipe
+                (:package "magit-section" :fetcher github :repo
+                          "magit/magit" :files
+                          ("lisp/magit-section.el"
+                           "docs/magit-section.texi"
+                           "magit-section-pkg.el")
+                          :source #2# :protocol https :inherit t
+                          :depth treeless :ref
+                          "531e7ca6190e71e6d500ddd1a1f6e5cf8402aeca"))
+ (llama :source #1# :recipe
+        (:package "llama" :fetcher github :repo "tarsius/llama" :files
+                  ("llama.el" ".dir-locals.el") :source #2# :protocol
+                  https :inherit t :depth treeless :ref
+                  "48e5bc4919a4a29665362832d59ade8e248b0c3e"))
  (inheritenv :source #1# :recipe
              (:package "inheritenv" :fetcher github :repo
                        "purcell/inheritenv" :files
@@ -98,7 +146,7 @@
  (wgrep :source #1# :recipe
         (:package "wgrep" :fetcher github :repo
                   "mhayashi1120/Emacs-wgrep" :files ("wgrep.el")
-                  :source "MELPA" :protocol https :inherit t :depth
+                  :source #2# :protocol https :inherit t :depth
                   treeless :ref
                   "49f09ab9b706d2312cab1199e1eeb1bcd3f27f6f"))
  (lv :source #1# :recipe
@@ -139,20 +187,6 @@
                           "*-pkg.el"))
                :source #2# :protocol https :inherit t :depth treeless
                :ref "1c49aad1c820c86f7ee35bf9fff8429502f60fef"))
- (llama :source #1# :recipe
-        (:package "llama" :fetcher github :repo "tarsius/llama" :files
-                  ("llama.el" ".dir-locals.el") :source #2# :protocol
-                  https :inherit t :depth treeless :ref
-                  "48e5bc4919a4a29665362832d59ade8e248b0c3e"))
- (magit-section :source #1# :recipe
-                (:package "magit-section" :fetcher github :repo
-                          "magit/magit" :files
-                          ("lisp/magit-section.el"
-                           "docs/magit-section.texi"
-                           "magit-section-pkg.el")
-                          :source #2# :protocol https :inherit t
-                          :depth treeless :ref
-                          "531e7ca6190e71e6d500ddd1a1f6e5cf8402aeca"))
  (tsc :source #1# :recipe
       (:package "tsc" :fetcher github :repo
                 "emacs-tree-sitter/elisp-tree-sitter" :branch
@@ -208,8 +242,8 @@
                                           "tests.el" "*-test.el"
                                           "*-tests.el" "LICENSE"
                                           "README*" "*-pkg.el"))
-                               :source "MELPA" :protocol https
-                               :inherit t :depth treeless :ref
+                               :source #2# :protocol https :inherit t
+                               :depth treeless :ref
                                "e391b52922086ac38397a3325933900b6d90f9f0"))
  (f :source #1# :recipe
     (:package "f" :fetcher github :repo "rejeep/f.el" :files
@@ -258,34 +292,6 @@
                        :files (:defaults "data") :source #2# :protocol
                        https :inherit t :depth treeless :ref
                        "14f7278dd7eb5eca762a6ff32467c72c661c0aae"))
- (which-key :source #1# :recipe
-            (:package "which-key" :repo "justbur/emacs-which-key"
-                      :fetcher github :files
-                      ("*.el" "*.el.in" "dir" "*.info" "*.texi"
-                       "*.texinfo" "doc/dir" "doc/*.info" "doc/*.texi"
-                       "doc/*.texinfo" "lisp/*.el" "docs/dir"
-                       "docs/*.info" "docs/*.texi" "docs/*.texinfo"
-                       (:exclude ".dir-locals.el" "test.el" "tests.el"
-                                 "*-test.el" "*-tests.el" "LICENSE"
-                                 "README*" "*-pkg.el"))
-                      :source #2# :protocol https :inherit t :depth
-                      treeless :ref
-                      "38d4308d1143b61e4004b6e7a940686784e51500"))
- (no-littering :source #1# :recipe
-               (:package "no-littering" :fetcher github :repo
-                         "emacscollective/no-littering" :files
-                         ("*.el" "*.el.in" "dir" "*.info" "*.texi"
-                          "*.texinfo" "doc/dir" "doc/*.info"
-                          "doc/*.texi" "doc/*.texinfo" "lisp/*.el"
-                          "docs/dir" "docs/*.info" "docs/*.texi"
-                          "docs/*.texinfo"
-                          (:exclude ".dir-locals.el" "test.el"
-                                    "tests.el" "*-test.el"
-                                    "*-tests.el" "LICENSE" "README*"
-                                    "*-pkg.el"))
-                         :source #2# :protocol https :inherit t :depth
-                         treeless :ref
-                         "ea15b1c607d4036ce37326bd5b4b2f4291ddfd60"))
  (org-fragtog :source #1# :recipe
               (:package "org-fragtog" :fetcher github :repo
                         "io12/org-fragtog" :files
@@ -297,15 +303,15 @@
                          (:exclude ".dir-locals.el" "test.el"
                                    "tests.el" "*-test.el" "*-tests.el"
                                    "LICENSE" "README*" "*-pkg.el"))
-                        :source "MELPA" :protocol https :inherit t
-                        :depth treeless :ref
+                        :source #2# :protocol https :inherit t :depth
+                        treeless :ref
                         "562f6590843eeab30ac8aa2ced285aff8d590861"))
  (gnuplot :source #1# :recipe
           (:package "gnuplot" :repo "emacs-gnuplot/gnuplot" :fetcher
                     github :files
                     ("gnuplot.el" "gnuplot-gui.el"
                      "gnuplot-context.el")
-                    :source "MELPA" :protocol https :inherit t :depth
+                    :source #2# :protocol https :inherit t :depth
                     treeless :ref
                     "f78da5b3394439f8f4f30a4aa30637eaf2bec63b"))
  (org-appear :source #1# :recipe
@@ -350,28 +356,21 @@
                      :source #2# :protocol https :inherit t :depth
                      treeless :ref
                      "b1f309726b1326e1a103742524ec331789f2bf94"))
- (org :source #1# :recipe
-      (:package "org" :repo
-                ("https://git.sr.ht/~bzg/org-mode" . "org") :pre-build
-                (progn
-                  (require 'elpaca-menu-org)
-                  (setq elpaca-menu-org-make-manual t)
-                  (elpaca-menu-org--build))
-                :autoloads "org-loaddefs.el" :depth treeless :build
-                (:not elpaca--generate-autoloads-async) :files
-                (:defaults ("etc/styles/" "etc/styles/*" "doc/*.texi"))
-                :source #2# :protocol https :inherit t :ref
-                "452584d9db534071bf55a17330d63b76fe4a68f1"))
- (emms :source #1# :recipe
-       (:package "emms" :fetcher git :url
-                 "https://git.savannah.gnu.org/git/emms.git" :files
-                 (:defaults (:exclude "doc/fdl.texi" "doc/gpl.texi"))
-                 :source "MELPA" :protocol https :inherit t :depth
-                 treeless :ref
-                 "abb4f614dae6b7e90ee1f275d8a5e40721c39d54"))
+ (org-roam-ui :source #1# :recipe
+              (:package "org-roam-ui" :fetcher github :repo
+                        "org-roam/org-roam-ui" :files
+                        (:defaults "out") :source "MELPA" :protocol
+                        https :inherit t :depth treeless :ref
+                        "5ac74960231db0bf7783c2ba7a19a60f582e91ab"))
+ (org-roam :source #1# :recipe
+           (:package "org-roam" :fetcher github :repo
+                     "org-roam/org-roam" :files
+                     (:defaults "extensions/*") :source "MELPA"
+                     :protocol https :inherit t :depth treeless :ref
+                     "031ee63bee7ecffee2eebb0faae37a37e2b8a603"))
  (elfeed :source #1# :recipe
          (:package "elfeed" :repo "skeeto/elfeed" :fetcher github
-                   :files (:defaults "README.md") :source "MELPA"
+                   :files (:defaults "README.md") :source #2#
                    :protocol https :inherit t :depth treeless :ref
                    "a39fb78e34ee25dc8baea83376f929d7c128344f"))
  (gptel :source #1# :recipe
@@ -384,7 +383,7 @@
                    (:exclude ".dir-locals.el" "test.el" "tests.el"
                              "*-test.el" "*-tests.el" "LICENSE"
                              "README*" "*-pkg.el"))
-                  :source "MELPA" :protocol https :inherit t :depth
+                  :source #2# :protocol https :inherit t :depth
                   treeless :ref
                   "fd9200b55979c9b262b269a2e4b5eb62ffc4253c"))
  (w3m :source #1# :recipe
@@ -511,9 +510,8 @@
                 (:exclude ".dir-locals.el" "test.el" "tests.el"
                           "*-test.el" "*-tests.el" "LICENSE" "README*"
                           "*-pkg.el"))
-               :source "MELPA" :protocol https :inherit t :depth
-               treeless :ref
-               "94813ba3a7ccf3af68beb23a2c39154a99e8c9ec"))
+               :source #2# :protocol https :inherit t :depth treeless
+               :ref "94813ba3a7ccf3af68beb23a2c39154a99e8c9ec"))
  (projectile :source #1# :recipe
              (:package "projectile" :fetcher github :repo
                        "bbatsov/projectile" :files
@@ -528,12 +526,6 @@
                        :source #2# :protocol https :inherit t :depth
                        treeless :ref
                        "4dd84b02c9cd7b04616dc2d01ba7bc87f0d15be8"))
- (yasnippet :source #1# :recipe
-            (:package "yasnippet" :repo "joaotavora/yasnippet"
-                      :fetcher github :files
-                      ("yasnippet.el" "snippets") :source "MELPA"
-                      :protocol https :inherit t :depth treeless :ref
-                      "2384fe1655c60e803521ba59a34c0a7e48a25d06"))
  (lsp-ui :source #1# :recipe
          (:package "lsp-ui" :repo "emacs-lsp/lsp-ui" :fetcher github
                    :files (:defaults "lsp-ui-doc.html" "resources")
@@ -545,6 +537,19 @@
                      github :files (:defaults "clients/*.el") :source
                      #2# :protocol https :inherit t :depth treeless
                      :ref "54251da4ffcf1e604296352bb78ff6ce0377351b"))
+ (fish-mode :source #1# :recipe
+            (:package "fish-mode" :fetcher github :repo
+                      "wwwjfy/emacs-fish" :files
+                      ("*.el" "*.el.in" "dir" "*.info" "*.texi"
+                       "*.texinfo" "doc/dir" "doc/*.info" "doc/*.texi"
+                       "doc/*.texinfo" "lisp/*.el" "docs/dir"
+                       "docs/*.info" "docs/*.texi" "docs/*.texinfo"
+                       (:exclude ".dir-locals.el" "test.el" "tests.el"
+                                 "*-test.el" "*-tests.el" "LICENSE"
+                                 "README*" "*-pkg.el"))
+                      :source "MELPA" :protocol https :inherit t
+                      :depth treeless :ref
+                      "2526b1803b58cf145bc70ff6ce2adb3f6c246f89"))
  (nix-ts-mode :source #1# :recipe
               (:package "nix-ts-mode" :fetcher github :repo
                         "nix-community/nix-ts-mode" :files
@@ -559,14 +564,6 @@
                         :source #2# :protocol https :inherit t :depth
                         treeless :ref
                         "62ce3a2dc39529c5db3516427e84b2c96b8efcfd"))
- (nix-mode :source #1# :recipe
-           (:package "nix-mode" :fetcher github :repo "NixOS/nix-mode"
-                     :files
-                     (:defaults
-                      (:exclude "nix-company.el" "nix-mode-mmm.el"))
-                     :source #2# :protocol https :inherit t :depth
-                     treeless :ref
-                     "719feb7868fb567ecfe5578f6119892c771ac5e5"))
  (rust-mode :source #1# :recipe
             (:package "rust-mode" :repo "rust-lang/rust-mode" :fetcher
                       github :files
@@ -580,6 +577,12 @@
                       :source #2# :protocol https :inherit t :depth
                       treeless :ref
                       "25d91cff281909e9b7cb84e31211c4e7b0480f94"))
+ (yasnippet :source #1# :recipe
+            (:package "yasnippet" :repo "joaotavora/yasnippet"
+                      :fetcher github :files
+                      ("yasnippet.el" "snippets") :source #2#
+                      :protocol https :inherit t :depth treeless :ref
+                      "2384fe1655c60e803521ba59a34c0a7e48a25d06"))
  (tree-sitter :source #1# :recipe
               (:package "tree-sitter" :fetcher github :repo
                         "emacs-tree-sitter/elisp-tree-sitter" :branch
@@ -613,7 +616,7 @@
                       (:exclude ".dir-locals.el" "test.el" "tests.el"
                                 "*-test.el" "*-tests.el" "LICENSE"
                                 "README*" "*-pkg.el"))
-                     :source "MELPA" :protocol https :inherit t :depth
+                     :source #2# :protocol https :inherit t :depth
                      treeless :ref
                      "6e43c07e83406cdd3f75952ee988d61d7573ec11"))
  (apheleia :source #1# :recipe
@@ -632,7 +635,7 @@
                   (:exclude ".dir-locals.el" "test.el" "tests.el"
                             "*-test.el" "*-tests.el" "LICENSE"
                             "README*" "*-pkg.el"))
-                 :source "MELPA" :protocol https :inherit t :depth
+                 :source #2# :protocol https :inherit t :depth
                  treeless :ref
                  "753bed1ccccc814f043591782e9ef375c7fda5f8"))
  (orderless :source #1# :recipe
@@ -668,15 +671,6 @@
                        :source #2# :protocol https :inherit t :depth
                        treeless :ref
                        "2ff4d690f78fb86573c11a32631e53627947ebee"))
- (rainbow-mode :source #1# :recipe
-               (:package "rainbow-mode" :repo
-                         ("https://github.com/emacsmirror/gnu_elpa"
-                          . "rainbow-mode")
-                         :branch "externals/rainbow-mode" :files
-                         ("*" (:exclude ".git")) :source "GNU ELPA"
-                         :protocol https :inherit t :depth treeless
-                         :ref
-                         "f7db3b5919f70420a91eb199f8663468de3033f3"))
  (consult-flycheck :source #1# :recipe
                    (:package "consult-flycheck" :fetcher github :repo
                              "minad/consult-flycheck" :files
@@ -689,8 +683,8 @@
                                         "tests.el" "*-test.el"
                                         "*-tests.el" "LICENSE"
                                         "README*" "*-pkg.el"))
-                             :source "MELPA" :protocol https :inherit
-                             t :depth treeless :ref
+                             :source #2# :protocol https :inherit t
+                             :depth treeless :ref
                              "77d3e790a322934ecb63ac0e8056b7a7b3d39fdf"))
  (consult :source #1# :recipe
           (:package "consult" :repo "minad/consult" :fetcher github
@@ -702,7 +696,7 @@
                      (:exclude ".dir-locals.el" "test.el" "tests.el"
                                "*-test.el" "*-tests.el" "LICENSE"
                                "README*" "*-pkg.el"))
-                    :source "MELPA" :protocol https :inherit t :depth
+                    :source #2# :protocol https :inherit t :depth
                     treeless :ref
                     "daa5276f7ad442483d2478a48192d9613c159de8"))
  (vertico :source #1# :recipe
@@ -760,6 +754,27 @@
                  :source #2# :protocol https :inherit t :depth
                  treeless :ref
                  "682e87fce99f39ea3155f11f87ee56b6e4593304"))
+ (which-key :source #1# :recipe
+            (:package "which-key" :repo "justbur/emacs-which-key"
+                      :fetcher github :files
+                      ("*.el" "*.el.in" "dir" "*.info" "*.texi"
+                       "*.texinfo" "doc/dir" "doc/*.info" "doc/*.texi"
+                       "doc/*.texinfo" "lisp/*.el" "docs/dir"
+                       "docs/*.info" "docs/*.texi" "docs/*.texinfo"
+                       (:exclude ".dir-locals.el" "test.el" "tests.el"
+                                 "*-test.el" "*-tests.el" "LICENSE"
+                                 "README*" "*-pkg.el"))
+                      :source #2# :protocol https :inherit t :depth
+                      treeless :ref
+                      "38d4308d1143b61e4004b6e7a940686784e51500"))
+ (rainbow-mode :source #1# :recipe
+               (:package "rainbow-mode" :repo
+                         ("https://github.com/emacsmirror/gnu_elpa"
+                          . "rainbow-mode")
+                         :branch "externals/rainbow-mode" :files
+                         ("*" (:exclude ".git")) :source #2# :protocol
+                         https :inherit t :depth treeless :ref
+                         "f7db3b5919f70420a91eb199f8663468de3033f3"))
  (diff-hl :source #1# :recipe
           (:package "diff-hl" :fetcher github :repo "dgutov/diff-hl"
                     :files
@@ -770,7 +785,7 @@
                      (:exclude ".dir-locals.el" "test.el" "tests.el"
                                "*-test.el" "*-tests.el" "LICENSE"
                                "README*" "*-pkg.el"))
-                    :source "MELPA" :protocol https :inherit t :depth
+                    :source #2# :protocol https :inherit t :depth
                     treeless :ref
                     "9b032018fda8eb6c241bba1ec0e5c354ad523b2c"))
  (writeroom-mode :source #1# :recipe
@@ -785,7 +800,7 @@
                                       "tests.el" "*-test.el"
                                       "*-tests.el" "LICENSE" "README*"
                                       "*-pkg.el"))
-                           :source "MELPA" :protocol https :inherit t
+                           :source #2# :protocol https :inherit t
                            :depth treeless :ref
                            "cca2b4b3cfcfea1919e1870519d79ed1a69aa5e2"))
  (dashboard :source #1# :recipe
@@ -840,6 +855,21 @@
                           :source #2# :protocol https :inherit t
                           :depth treeless :ref
                           "a85cb28da8bcb29be232e21879f0f5a1e8551b8c"))
+ (no-littering :source #1# :recipe
+               (:package "no-littering" :fetcher github :repo
+                         "emacscollective/no-littering" :files
+                         ("*.el" "*.el.in" "dir" "*.info" "*.texi"
+                          "*.texinfo" "doc/dir" "doc/*.info"
+                          "doc/*.texi" "doc/*.texinfo" "lisp/*.el"
+                          "docs/dir" "docs/*.info" "docs/*.texi"
+                          "docs/*.texinfo"
+                          (:exclude ".dir-locals.el" "test.el"
+                                    "tests.el" "*-test.el"
+                                    "*-tests.el" "LICENSE" "README*"
+                                    "*-pkg.el"))
+                         :source #2# :protocol https :inherit t :depth
+                         treeless :ref
+                         "ea15b1c607d4036ce37326bd5b4b2f4291ddfd60"))
  (general :source #1# :recipe
           (:package "general" :fetcher github :repo
                     "noctuid/general.el" :files
@@ -853,6 +883,18 @@
                     :source #2# :protocol https :inherit t :depth
                     treeless :ref
                     "826bf2b97a0fb4a34c5eb96ec2b172d682fd548f" :wait t))
+ (org :source #1# :recipe
+      (:package "org" :repo
+                ("https://git.sr.ht/~bzg/org-mode" . "org") :pre-build
+                (progn
+                  (require 'elpaca-menu-org)
+                  (setq elpaca-menu-org-make-manual t)
+                  (elpaca-menu-org--build))
+                :autoloads "org-loaddefs.el" :depth treeless :build
+                (:not elpaca--generate-autoloads-async) :files
+                (:defaults ("etc/styles/" "etc/styles/*" "doc/*.texi"))
+                :source #2# :protocol https :inherit t :ref
+                "452584d9db534071bf55a17330d63b76fe4a68f1" :wait t))
  (elpaca-use-package :source #1# :recipe
                      (:package "elpaca-use-package" :wait t :repo
                                "https://github.com/progfolio/elpaca.git"

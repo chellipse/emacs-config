@@ -1571,6 +1571,11 @@ Key Communication Principles:
   (setq org-roam-directory "~/Sync/org-roam")
   (org-roam-db-autosync-mode))
 #+end_src
+** =org-roam-ui=
+#+begin_src emacs-lisp
+(use-package org-roam-ui
+  :ensure t)
+#+end_src
 ** =evil-org=
 #+begin_src emacs-lisp
 (use-package evil-org
