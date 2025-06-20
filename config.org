@@ -541,6 +541,48 @@ to be quoted."
 (setq frame-resize-pixelwise t
       window-resize-pixelwise t)
 #+end_src
+** Popup Frame Manager
+#+begin_src emacs-lisp
+(defvar popup-frame-name "*popup-frame*")
+
+(defun get-or-create-popup-frame ()
+       "Get or create a frame with the name of popup-frame-name value."
+       (or (seq-find (lambda (frame)
+                 (string= (frame-parameter frame 'name) popup-frame-name))
+                 (frame-list))
+            (make-frame `((name . ,popup-frame-name)))))
+
+(define-minor-mode alt-frame-mode
+  "Mode for spawning popup buffers in an alt frame, name specified
+  by popup-frame-name"
+  :global t)
+
+(defun display-buffer-in-alt-frame (buffer alist)
+  "Display BUFFER in frame with name of popup-frame-name."
+  (if alt-frame-mode
+    (let* ((frame (get-or-create-popup-frame))
+           (window (and frame (frame-selected-window frame))))
+      (when (and frame buffer window)
+        (with-selected-frame frame
+          (set-window-buffer window buffer))
+        window))))
+
+(defmacro add-display-rule! (pattern &rest functions)
+  "Add a rule to display-buffer-alist of PATTERN and FUNCTIONS if it doesn't
+already exist."
+  `(let ((new-rule '(,pattern ,functions)))
+     (unless (member new-rule display-buffer-alist)
+       (add-to-list 'display-buffer-alist new-rule))))
+
+(add-display-rule! "\\*Help\\*"
+            display-buffer-reuse-window display-buffer-in-alt-frame)
+(add-display-rule! "\\*compilation\\*"
+            display-buffer-reuse-window display-buffer-in-alt-frame)
+
+
+;; Enable
+(alt-frame-mode)
+#+end_src
 ** Frame Alpha
 #+begin_src emacs-lisp
 (setq default-frame-alpha 100)
@@ -1595,7 +1637,22 @@ Key Communication Principles:
 ** GC
 #+begin_src emacs-lisp
 (setq gc-cons-threshold (* 96 1024 1024))
-(add-hook 'focus-out-hook #'garbage-collect)
+
+;; we need to handle multi-frame emacs sessions, where switching frames from
+;; emacs -> emacs is NOT a valid time to gc. however, when switching in this way,
+;; there is a small period of time inbetween receiving notice of defocusing the
+;; first window, and focusing the second window, where no windows are focused.
+;;
+;; thus, after a focus change we must have a slight delay before checking if any
+;; emacs frames are focused, then gc only if none are.
+(defun gc-unless-focused ()
+  "Will call garbage-collect if there are no focused emacs frames"
+  (interactive)
+  (unless (cl-some (lambda (frame) (frame-focus-state frame)) (frame-list))
+      (garbage-collect)))
+
+(add-function :after after-focus-change-function (lambda ()
+  (run-with-timer 0.1 nil #'gc-unless-focused)))
 #+end_src
 ** Elpaca process ques
 #+begin_src emacs-lisp
