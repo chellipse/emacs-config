@@ -1117,7 +1117,7 @@ SCOPE can be:
           (setf (alist-get 'rustfmt apheleia-formatters) '("rustfmt" "--edition" "2021")))
   (after! (tree-sitter-langs)
           (setq rust-mode-treesitter-derive t))
-  (setq rust-cargo-default-arguments "--color=never"))
+  (setq rust-cargo-default-arguments "--color=always"))
 #+end_src
 ** =nix-ts-mode=
 #+begin_src emacs-lisp
@@ -1198,6 +1198,11 @@ SCOPE can be:
               "g d" #'evil-goto-definition
               "," #'lsp-ui-doc-toggle
               "." #'lsp-ui-doc-glance))
+#+end_src
+** =ansi-color=
+#+begin_src emacs-lisp
+(use-package ansi-color
+    :hook (compilation-filter . ansi-color-compilation-filter))
 #+end_src
 * Projects
 ** =projectile=
