@@ -1013,6 +1013,8 @@ already exist."
   (add-hook! (nix-ts-mode-hook
               nix-mode-hook
               rust-mode-hook
+              c-mode-hook
+              c++-mode-hook
               emacs-lisp-mode-hook) #'apheleia-mode))
 #+end_src
 ** =flycheck=
