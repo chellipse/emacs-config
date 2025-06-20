@@ -530,12 +530,14 @@ to be quoted."
 #+end_src
 ** Odds and Ends
 #+begin_src emacs-lisp
+(setq truncate-lines t)
 (setq-default indent-tabs-mode nil tab-width 4)
 
 (setq large-file-warning-threshold (* 1000 1000 50))
 
 (global-hl-line-mode 1)
-(global-visual-line-mode 1)
+;; NOTE: Maybe causes line truncation?
+;; (global-visual-line-mode 1)
 (blink-cursor-mode -1)
 
 (setq frame-resize-pixelwise t
