@@ -1055,7 +1055,7 @@ already exist."
 #+begin_src emacs-lisp
 (use-package rust-mode
   :ensure t
-  :after (general lib)
+  :after (general)
   :config
   (defun rust-current-crate-name ()
     "Get the name of the current crate by parsing Cargo.toml in the crate directory."
