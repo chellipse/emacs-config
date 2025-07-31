@@ -1170,6 +1170,7 @@ SCOPE can be:
     :major-modes '(fish-mode)
     :server-id 'my-language-server))
   (setq lsp-completion-provider :none
+        lsp-keep-workspace-alive nil
         lsp-lens-enable nil
         lsp-auto-configure t)
   ;; NOTE: lsp-deferred is required for catching the right envrc env
