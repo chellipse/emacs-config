@@ -58,7 +58,7 @@
       (message "elpaca-lock-file == nil")
     (elpaca-write-lock-file elpaca-lock-file)))
 
-(use-package org :ensure (:wait t))
+(require 'org)
 
 (org-babel-load-file (expand-file-name "config.org" user-emacs-directory))
 
