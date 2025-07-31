@@ -1151,7 +1151,7 @@ SCOPE can be:
 #+end_src
 ** =c-mode=
 #+begin_src emacs-lisp
-(map-leader! :n c-mode-map "SPC"
+(map-leader! :n (c-mode-map c++-mode-map) "SPC"
             "c x" #'compile
             "c c" #'recompile)
 #+end_src
