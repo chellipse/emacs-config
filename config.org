@@ -1660,7 +1660,7 @@ Key Communication Principles:
 #+end_src
 ** GC
 #+begin_src emacs-lisp
-(setq gc-cons-threshold (* 96 1024 1024))
+(setq gc-cons-threshold (* 48 1024 1024))
 
 ;; we need to handle multi-frame emacs sessions, where switching frames from
 ;; emacs -> emacs is NOT a valid time to gc. however, when switching in this way,
