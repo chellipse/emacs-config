@@ -1,5 +1,6 @@
 *
 !.gitignore
+!.git-blame-ignore-revs
 !README.md
 !TODO.org
 !early-init.el
