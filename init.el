@@ -44,8 +44,6 @@
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
 
-(setq elpaca-lock-file (expand-file-name "elpaca.lock" (file-name-directory load-file-name)))
-
 ;; Install use-package support
 (elpaca elpaca-use-package
   ;; Enable use-package :ensure support for Elpaca.
@@ -62,3 +60,4 @@
 
 (org-babel-load-file (expand-file-name "config.org" user-emacs-directory))
 
+;;; init.el ends here

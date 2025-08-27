@@ -1273,6 +1273,7 @@ SCOPE can be:
 #+begin_src emacs-lisp
 (use-package ranger
   :ensure t
+  :after evil
   :config
   (setq ranger-show-hidden t
         ranger-preview-delay 0.1
@@ -1575,6 +1576,7 @@ Key Communication Principles:
 #+begin_src emacs-lisp
 (use-package org-roam
   :ensure t
+  :after org
   :config
   (unless (file-exists-p "~/Sync/org-roam")
     (make-directory "~/Sync/org-roam" t))
@@ -1584,6 +1586,7 @@ Key Communication Principles:
 ** =org-roam-ui=
 #+begin_src emacs-lisp
 (use-package org-roam-ui
+  :after org-roam
   :ensure t)
 #+end_src
 ** =evil-org=
