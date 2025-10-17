@@ -1114,6 +1114,9 @@
                  "c T" (cargo-cmd! "test" :scope 'workspace)
                  "c c" (cargo-cmd! "check" :scope 'package)
                  "c C" (cargo-cmd! "check" :scope 'workspace))
+    ;; treat '_' as part of a word in rust-mode, since rust uses snake case
+    (add-hook 'rust-mode-hook
+              (lambda () (modify-syntax-entry ?_ "w")))
 
     (after! (eglot)
             (add-hook 'rust-mode-hook 'eglot-ensure)
