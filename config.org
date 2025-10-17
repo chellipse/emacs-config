@@ -1532,6 +1532,26 @@
 * Org
 ** =org=
 #+begin_src emacs-lisp
+  (map! :n org-mode-map
+        "C-'" #'org-edit-src-code)
+
+  (defun my/org-edit-src-exit-advice (orig-fun &rest args)
+    "Format buffer with Apheleia if formatter exists for major mode, then exit org src block."
+    (let ((formatter (alist-get major-mode apheleia-mode-alist)))
+      (if formatter
+          ;; we have to force capturing the closure because apheleia is async
+          (let ((orig orig-fun)
+                (arguments args))
+            (apheleia-format-buffer
+             formatter
+             nil
+             :callback `(lambda (&rest _plist)
+                          (apply ,orig ',arguments))))
+        (apply orig-fun args))))
+
+  (after! (apheleia)
+          (advice-add 'org-edit-src-exit :around #'my/org-edit-src-exit-advice))
+
   (setq org-preview-latex-image-directory "/tmp/ltximg/"
         org-preview-latex-default-process 'luadvisvgm)
   (add-to-list 'org-preview-latex-process-alist
