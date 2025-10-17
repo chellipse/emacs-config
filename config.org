@@ -1020,6 +1020,7 @@
                 rust-mode-hook
                 c-mode-hook
                 c++-mode-hook
+                python-mode-hook
                 emacs-lisp-mode-hook) #'apheleia-mode))
 #+end_src
 ** =flycheck=
@@ -1054,66 +1055,43 @@
     (yas-global-mode 1))
 #+end_src
 * Langs
+** =prog-mode=
+#+begin_src emacs-lisp
+  (setq compilation-scroll-output t)
+
+  (defvar my-compile-last-command ""
+    "The last command used with `my-compile-wrapper`.")
+
+  (defun my-compile-wrapper (cmd)
+    "Compile with CMD, prepending 'cd PROJECT_ROOT && ' if in a projectile project."
+    (interactive
+     (list (read-shell-command "Compile command: " my-compile-last-command)))
+    (setq my-compile-last-command cmd)
+
+    ;; Modification pass: add project root cd
+    (let ((project-root (projectile-project-root)))
+      (when project-root
+        (setq cmd (format "cd %s && %s" project-root cmd))))
+
+    ;; Modification pass: add --color=always for cargo commands if ansi-color filter is enabled
+    (when (and (string-match-p "cargo" cmd)
+               (memq 'ansi-color-compilation-filter compilation-filter-hook))
+      (setq cmd (concat cmd " --color=always")))
+
+    ;; Final compile
+    (compile cmd))
+
+  (map-leader! :n prog-mode-map "SPC"
+               "c x" #'my-compile-wrapper
+               "c r" #'compile
+               "c c" #'recompile)
+#+end_src
 ** =rust-mode=
 #+begin_src emacs-lisp
   (use-package rust-mode
     :ensure t
     :after (general)
     :config
-    (defun rust-current-crate-name ()
-      "Get the name of the current crate by parsing Cargo.toml in the crate directory."
-      (let ((crate-dir (rust-buffer-crate)))
-        (when crate-dir
-          (let ((cargo-toml (expand-file-name "Cargo.toml" crate-dir)))
-            (when (file-exists-p cargo-toml)
-              (with-temp-buffer
-                (insert-file-contents cargo-toml)
-                (goto-char (point-min))
-                (when (re-search-forward "^name\\s-*=\\s-*\"\\([^\"]+\\)\"" nil t)
-                  (match-string 1))))))))
-
-    (defmacro cargo-cmd! (cmd &key scope)
-      "Generate a lambda that calls rust--compile with CMD as the cargo subcommand.
-  SCOPE can be:
-    'workspace - adds --workspace flag
-    'package   - adds --package with current crate name
-    anything else or nil - uses raw command with no package/workspace flags"
-      `(lambda ()
-         (interactive)
-         (cond
-          ((eq ,scope 'workspace)
-           (rust--compile nil
-                          ,(concat "%s " cmd " --workspace %s")
-                          rust-cargo-bin
-                          rust-cargo-default-arguments))
-          ((eq ,scope 'package)
-           (let ((crate-name (rust-current-crate-name)))
-             (if crate-name
-                 (rust--compile nil
-                                ,(concat "%s " cmd " --package %s %s")
-                                rust-cargo-bin
-                                crate-name
-                                rust-cargo-default-arguments)
-               (rust--compile nil
-                              ,(concat "%s " cmd " %s")
-                              rust-cargo-bin
-                              rust-cargo-default-arguments))))
-          (t
-           (rust--compile nil
-                          ,(concat "%s " cmd " %s")
-                          rust-cargo-bin
-                          rust-cargo-default-arguments)))))
-
-    (map-leader! :n rust-mode-map "SPC"
-                 "c x" #'lsp-rust-analyzer-run
-                 "c r" (cargo-cmd! "run" :scope 'package)
-                 "c R" (cargo-cmd! "run --release" :scope 'package)
-                 "c b" (cargo-cmd! "build" :scope 'workspace)
-                 "c B" (cargo-cmd! "build --release" :scope 'workspace)
-                 "c t" (cargo-cmd! "test" :scope 'package)
-                 "c T" (cargo-cmd! "test" :scope 'workspace)
-                 "c c" (cargo-cmd! "check" :scope 'package)
-                 "c C" (cargo-cmd! "check" :scope 'workspace))
     ;; treat '_' as part of a word in rust-mode, since rust uses snake case
     (add-hook 'rust-mode-hook
               (lambda () (modify-syntax-entry ?_ "w")))
@@ -1155,11 +1133,14 @@
       :major-modes '(fish-mode)
       :server-id 'fish-language-server)))
 #+end_src
-** =c-mode=
+** =python-mode=
 #+begin_src emacs-lisp
-  (map-leader! :n (c-mode-map c++-mode-map) "SPC"
-              "c x" #'compile
-              "c c" #'recompile)
+  ;; we use the server from within uv so the lsp server is aware of deps.
+  (setq lsp-pylsp-server-command '("uv" "run" "pylsp"))
+
+  (after! (apheleia)
+          (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
+          (setf (alist-get 'ruff apheleia-formatters) '("ruff" "format" "-")))
 #+end_src
 * LSP
 ** =lsp-mode=
