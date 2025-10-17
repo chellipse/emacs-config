@@ -736,6 +736,7 @@
                     ;; Buffers
                     "b b" #'consult-buffer
                     "b d" '("Kill current buffer." . kill-current-buffer)
+                    "b c" #'whitespace-cleanup
                     ;; Emacs
                     "e k" '("Kill Emacs" . save-buffers-kill-emacs)
                     "e r" '("Reload config!" . reload-config)
@@ -1244,6 +1245,8 @@
     :ensure t
     :after (lsp-mode flycheck)
     :config
+    (map-leader! :n (envrc-mode-map) "SPC"
+                "b r" 'envrc-reload)
     (envrc-global-mode))
 #+end_src
 * Tools
