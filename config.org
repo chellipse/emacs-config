@@ -530,7 +530,7 @@
 #+end_src
 ** Odds and Ends
 #+begin_src emacs-lisp
-  (setq truncate-lines t)
+  (setq-default truncate-lines t)
   (setq-default indent-tabs-mode nil tab-width 4)
 
   (setq large-file-warning-threshold (* 1000 1000 50))
