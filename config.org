@@ -898,7 +898,9 @@
     (setq consult-narrow-key "<")
 
     (after! (evil)
-            (setq evil-jumps-cross-buffers nil)
+            ;; not sure why this was set here, it fucks up returning to project
+            ;; buffer after lsp-goto-implementation and evil-goto-definition
+            ;; (setq evil-jumps-cross-buffers nil)
             (evil-set-command-property 'consult-line :jump t)))
 #+end_src
 ** =consult-flycheck=
