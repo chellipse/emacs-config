@@ -730,66 +730,67 @@
     :config
     (evil-mode 1)
     (map-leader! :n '(global evil-mode-map) "SPC"
-                    ";" #'eval-expression
-                    ":" #'eval-last-sexp
-                    "a" #'lsp-execute-code-action
-                    "k" #'lsp-ui-doc-glance
-                    "r" #'lsp-rename
-                    ;; Buffers
-                    "b b" #'consult-buffer
-                    "b d" '("Kill current buffer." . kill-current-buffer)
-                    "b c" #'whitespace-cleanup
-                    ;; Emacs
-                    "e k" '("Kill Emacs" . save-buffers-kill-emacs)
-                    "e r" '("Reload config!" . reload-config)
-                    ;; Find
-                    "f f" '("Open a file!" . find-file)
-                    "f r" '("Open a recent file!" . consult-recent-file)
-                    ;; Open
-                    "o e" '("Open Eshell!" . eshell)
-                    "o g" #'gptel
-                    "o r" '("Open Ranger!" . ranger)
-                    "o m" '("Open a MAGIT!" . magit)
-                    "o t" '("Open Treemacs!" . treemacs)
-                    "o v" '("Open vTerm!" . vterm)
-                    ;; Search
-                    "s w" '("Search: Wikipedia" . search-wikipedia)
-                    ;; Window
-                    "w h" #'evil-window-left
-                    "w j" #'evil-window-down
-                    "w k" #'evil-window-up
-                    "w l" #'evil-window-right
-                    "w s" #'evil-window-split
-                    "w v" #'evil-window-vsplit
-                    ;; Zen
-                    "z i" #'writeroom-increase-width
-                    "z d" #'writeroom-decrease-width
-                    "z z" #'writeroom-mode)
+                 ";" #'eval-expression
+                 ":" #'eval-last-sexp
+                 "a" #'lsp-execute-code-action
+                 "k" #'lsp-ui-doc-glance
+                 "r" #'lsp-rename
+                 ;; Buffers
+                 "b b" #'consult-buffer
+                 "b d" '("Kill current buffer." . kill-current-buffer)
+                 "b c" #'whitespace-cleanup
+                 "b e" #'eval-buffer
+                 ;; Emacs
+                 "e k" '("Kill Emacs" . save-buffers-kill-emacs)
+                 "e r" '("Reload config!" . reload-config)
+                 ;; Find
+                 "f f" '("Open a file!" . find-file)
+                 "f r" '("Open a recent file!" . consult-recent-file)
+                 ;; Open
+                 "o e" '("Open Eshell!" . eshell)
+                 "o g" #'gptel
+                 "o r" '("Open Ranger!" . ranger)
+                 "o m" '("Open a MAGIT!" . magit)
+                 "o t" '("Open Treemacs!" . treemacs)
+                 "o v" '("Open vTerm!" . vterm)
+                 ;; Search
+                 "s w" '("Search: Wikipedia" . search-wikipedia)
+                 ;; Window
+                 "w h" #'evil-window-left
+                 "w j" #'evil-window-down
+                 "w k" #'evil-window-up
+                 "w l" #'evil-window-right
+                 "w s" #'evil-window-split
+                 "w v" #'evil-window-vsplit
+                 ;; Zen
+                 "z i" #'writeroom-increase-width
+                 "z d" #'writeroom-decrease-width
+                 "z z" #'writeroom-mode)
     (map-leader! :n '(global evil-mode-map) "f"
-                        "f" 'consult-buffer
-                        "l" 'consult-line
-                        "d" 'consult-fd
-                        "r" 'consult-ripgrep
-                        "m" 'consult-imenu
-                        "o" 'consult-org-heading
-                        "d" (cmd! (funcall dynamic-diagnostic-fn)))
+                 "f" #'consult-buffer
+                 "l" #'consult-line
+                 "d" #'consult-fd
+                 "r" #'consult-ripgrep
+                 "m" #'consult-imenu
+                 "o" #'consult-org-heading
+                 "d" (cmd! (funcall dynamic-diagnostic-fn)))
     (map! :nv '(global evil-mode-map)
-                "g e" #'evil-goto-line
-                "t" #'comment-line)
+          "g e" #'evil-goto-line
+          "t" #'comment-line)
     (map! :n '(global evil-mode-map)
-                "9" (cmd! (scroll-up 18))
-                "0" (cmd! (scroll-down 18))
-                "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
-                "M-=" (cmd! (set-frame-parameter nil 'alpha-background (+ (frame-parameter nil 'alpha-background) 1)))
-                "M--" (cmd! (set-frame-parameter nil 'alpha-background (- (frame-parameter nil 'alpha-background) 1)))
-                "C-+" (cmd! (setq font-size default-font-size) (refresh-global-font-size))
-                "C-=" #'increase-global-font-size
-                "C--" #'decrease-global-font-size
-                "M-j" #'evil-window-left
-                "M-k" #'evil-window-down
-                "M-l" #'evil-window-up
-                "M-;" #'evil-window-right
-                "U" #'evil-redo)
+          "9" (cmd! (scroll-up 18))
+          "0" (cmd! (scroll-down 18))
+          "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
+          "M-=" (cmd! (set-frame-parameter nil 'alpha-background (+ (frame-parameter nil 'alpha-background) 1)))
+          "M--" (cmd! (set-frame-parameter nil 'alpha-background (- (frame-parameter nil 'alpha-background) 1)))
+          "C-+" (cmd! (setq font-size default-font-size) (refresh-global-font-size))
+          "C-=" #'increase-global-font-size
+          "C--" #'decrease-global-font-size
+          "M-j" #'evil-window-left
+          "M-k" #'evil-window-down
+          "M-l" #'evil-window-up
+          "M-;" #'evil-window-right
+          "U" #'evil-redo)
     )
 #+end_src
 ** =evil-collection=
