@@ -1168,7 +1168,7 @@
     (lsp-rust-analyzer-proc-macro-enable t)
     :config
     (lsp-register-client
-      (make-lsp-client
+     (make-lsp-client
       :new-connection (lsp-stdio-connection '("fish-lsp" "start"))
       :major-modes '(fish-mode)
       :server-id 'my-language-server))
