@@ -679,7 +679,9 @@
 #+begin_src emacs-lisp
   (use-package diff-hl
     :ensure t
+    :after magit
     :config
+    (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh)
     (global-diff-hl-mode))
 #+end_src
 ** =rainbow-mode=
