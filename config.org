@@ -167,12 +167,12 @@
 * UI
 ** Font
 #+begin_src emacs-lisp
-  ;; (setq default-font-mono "Iosevka Pro"
-  ;;       default-font-propo "Iosevka Nerd Font Propo")
-  (setq default-font-mono "RobotoMono Nerd Font"
-        default-font-propo "Roboto")
+  (setq default-font-mono "Iosevka Pro"
+        default-font-propo "Iosevka Nerd Font Propo")
+  ;; (setq default-font-mono "RobotoMono Nerd Font"
+  ;; default-font-propo "Roboto")
 
-  (setq default-font-size 14)
+  (setq default-font-size 10)
   (unless (boundp 'font-size)
     (setq font-size default-font-size))
 
