@@ -1529,6 +1529,11 @@
                          ;; ("")
                          )))
 #+end_src
+** =tramp=
+#+begin_src emacs-lisp
+  (setq tramp-default-method "ssh"
+        tramp-default-host "delta")
+#+end_src
 * Org
 ** =org=
 #+begin_src emacs-lisp
