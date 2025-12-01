@@ -1175,6 +1175,8 @@
     (setq lsp-completion-provider :none
           lsp-keep-workspace-alive nil
           lsp-lens-enable nil
+          ;; NOTE: rust-analyzer's textDocument/documentSymbol outputs aren't to my taste
+          lsp-enable-imenu nil
           lsp-auto-configure t)
     ;; NOTE: lsp-deferred is required for catching the right envrc env
     (add-hook! (python-mode-hook
