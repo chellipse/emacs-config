@@ -1062,17 +1062,21 @@
 #+begin_src emacs-lisp
   (setq compilation-scroll-output t)
 
-  (defvar my-compile-last-command ""
-    "The last command used with `my-compile-wrapper`.")
+  (defvar my-compile-last-commands (make-hash-table :test 'equal)
+    "Hash table mapping project roots to their last compile commands.")
 
-  (defun my-compile-wrapper (cmd)
+  (defun my-compile (cmd)
     "Compile with CMD, prepending 'cd PROJECT_ROOT && ' if in a projectile project."
     (interactive
-     (list (read-shell-command "Compile command: " my-compile-last-command)))
-    (setq my-compile-last-command cmd)
+     (list (read-shell-command "Compile command: "
+                               (gethash (projectile-project-root) my-compile-last-commands ""))))
 
-    ;; Modification pass: add project root cd
     (let ((project-root (projectile-project-root)))
+      ;; Store the original command (before modifications) for this project
+      (when project-root
+        (puthash project-root cmd my-compile-last-commands))
+
+      ;; Modification pass: add project root cd
       (when project-root
         (setq cmd (format "cd %s && %s" project-root cmd))))
 
@@ -1084,10 +1088,19 @@
     ;; Final compile
     (compile cmd))
 
+  (defun my-recompile ()
+    "Recompile using the last command for the current project."
+    (interactive)
+    (let* ((project-root (projectile-project-root))
+           (last-cmd (gethash project-root my-compile-last-commands)))
+      (if last-cmd
+          (my-compile last-cmd)
+        (call-interactively #'my-compile))))
+
   (map-leader! :n prog-mode-map "SPC"
-               "c x" #'my-compile-wrapper
+               "c x" #'my-compile
                "c r" #'compile
-               "c c" #'recompile)
+               "c c" #'my-recompile)
 #+end_src
 ** =rust-mode=
 #+begin_src emacs-lisp
