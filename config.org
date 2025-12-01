@@ -548,11 +548,11 @@
   (defvar popup-frame-name "*popup-frame*")
 
   (defun get-or-create-popup-frame ()
-         "Get or create a frame with the name of popup-frame-name value."
-         (or (seq-find (lambda (frame)
-                   (string= (frame-parameter frame 'name) popup-frame-name))
-                   (frame-list))
-              (make-frame `((name . ,popup-frame-name)))))
+    "Get or create a frame with the name of popup-frame-name value."
+    (or (seq-find (lambda (frame)
+                    (string= (frame-parameter frame 'name) popup-frame-name))
+                  (frame-list))
+        (make-frame `((name . ,popup-frame-name)))))
 
   (define-minor-mode alt-frame-mode
     "Mode for spawning popup buffers in an alt frame, name specified
@@ -562,12 +562,12 @@
   (defun display-buffer-in-alt-frame (buffer alist)
     "Display BUFFER in frame with name of popup-frame-name."
     (if alt-frame-mode
-      (let* ((frame (get-or-create-popup-frame))
-             (window (and frame (frame-selected-window frame))))
-        (when (and frame buffer window)
-          (with-selected-frame frame
-            (set-window-buffer window buffer))
-          window))))
+        (let* ((frame (get-or-create-popup-frame))
+               (window (and frame (frame-selected-window frame))))
+          (when (and frame buffer window)
+            (with-selected-frame frame
+              (set-window-buffer window buffer))
+            window))))
 
   (defmacro add-display-rule! (pattern &rest functions)
     "Add a rule to display-buffer-alist of PATTERN and FUNCTIONS if it doesn't
@@ -577,13 +577,13 @@
          (add-to-list 'display-buffer-alist new-rule))))
 
   (add-display-rule! "\\*Help\\*"
-              display-buffer-reuse-window display-buffer-in-alt-frame)
+                     display-buffer-reuse-window display-buffer-in-alt-frame)
   (add-display-rule! "\\*compilation\\*"
-              display-buffer-reuse-window display-buffer-in-alt-frame)
+                     display-buffer-reuse-window display-buffer-in-alt-frame)
 
 
   ;; Enable
-  (alt-frame-mode)
+  ;; (alt-frame-mode)
 #+end_src
 ** Frame Alpha
 #+begin_src emacs-lisp
