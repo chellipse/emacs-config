@@ -10,7 +10,7 @@
 #+end_src
 ** =general=
 #+begin_src emacs-lisp
-  (use-package general :ensure (:wait t) :demand t
+  (use-package general :demand t
     :config
     (general-evil-setup))
 #+end_src
@@ -23,7 +23,7 @@
     (load custom-file))
 
   (use-package no-littering
-    :ensure t
+    :demand t
     :config
     (setq auto-save-file-name-transforms
           `((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
@@ -184,7 +184,9 @@
 #+end_src
 ** Statusline
 #+begin_src emacs-lisp
-  (elpaca doom-modeline
+  (use-package doom-modeline
+    :demand t
+    :config
     (doom-modeline-mode 1)
     (setq doom-modeline-time-clock-size 3.0
           doom-modeline-always-show-macro-register t
@@ -201,11 +203,15 @@
 #+end_src
 *** Doom One
 #+begin_src emacs-lisp
-  (elpaca doom-themes
+  (use-package doom-themes
+    :demand t
+    :config
     (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
           doom-themes-enable-italic t) ; if nil, italics is universally disabled
     (load-theme 'doom-one t)
-    (doom-themes-org-config)
+    ;; doom-themes-org-config may not exist in all versions
+    (when (fboundp 'doom-themes-org-config)
+      (doom-themes-org-config))
     ;; (after!
     ;;  (tree-sitter)
     ;;  ;; Functions.
@@ -308,12 +314,14 @@
 #+end_src
 *** Spacemacs
 #+begin_src emacs-lisp :tangle no
-  (elpaca spacemacs-theme
+  (use-package spacemacs-theme
+    :config
     (load-theme 'spacemacs-dark t))
 #+end_src
 *** Nano
 #+begin_src emacs-lisp :tangle no
-  (elpaca '(nano :type git :host github :repo "rougier/nano-emacs")
+  (use-package nano
+    :config
     (after! (lsp-mode lsp-ui)
             (setq nano-font-family-monospaced default-font-mono
                   nano-font-family-proportional default-font-propo)
@@ -618,7 +626,7 @@
 ** =hl-todo=
 #+begin_src emacs-lisp
   (use-package hl-todo
-    :ensure t
+    :demand t
     :config
     (setq hl-todo-highlight-punctuation ":"
           hl-todo-keyword-faces
@@ -634,7 +642,6 @@
 ** =rainbow-delimiters=
 #+begin_src emacs-lisp
   (use-package rainbow-delimiters
-    :ensure t
     :init
     (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
 #+end_src
@@ -642,7 +649,7 @@
 #+begin_src emacs-lisp
   ;; TODO add a hook to reopen the buffer if it doesn't exit when another is deleted
   (use-package dashboard
-    :ensure t
+    :demand t
     :config
     ;; (defvar title-list nil)
     ;; (setq dashboard-banner-logo-title
@@ -671,30 +678,28 @@
 ** =writeroom-mode=
 #+begin_src emacs-lisp
   (use-package writeroom-mode
-    :ensure t
     :config
     (setq writeroom-width 120))
 #+end_src
 ** =diff-hl=
 #+begin_src emacs-lisp
   (use-package diff-hl
-    :ensure t
-    :after magit
+    :demand t
     :config
-    (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh)
-    (global-diff-hl-mode))
+    (global-diff-hl-mode)
+    ;; Integrate with magit when it's loaded
+    (with-eval-after-load 'magit
+      (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh)))
 #+end_src
 ** =rainbow-mode=
 #+begin_src emacs-lisp
   (use-package rainbow-mode
-    :ensure t)
+    )
 #+end_src
 ** =which-key=
 #+begin_src emacs-lisp
   (use-package which-key
-    :ensure t
-    :init
-    (which-key-mode)
+    :demand t
     :custom
     (which-key-idle-delay 0.2)
     (which-key-prefix-prefix "+")
@@ -712,13 +717,14 @@
     ;; Allow C-h to trigger which-key before it is done automatically
     (setq which-key-show-early-on-C-h t)
     ;; Make sure which-key buffer is always below minibuffer
-    (setq which-key-popup-type 'side-window))
+    (setq which-key-popup-type 'side-window)
+    (which-key-mode))
 #+end_src
 * Evil
 ** =evil=
 #+begin_src emacs-lisp
   (use-package evil
-    :ensure t
+    :demand t
     :after undo-tree
     :init
     (setq evil-undo-system 'undo-tree
@@ -796,7 +802,7 @@
 ** =evil-collection=
 #+begin_src emacs-lisp
   (use-package evil-collection
-    :ensure t
+    :demand t
     :after evil
     :config
     (setq evil-collection-want-unimpaired-p nil)
@@ -805,17 +811,13 @@
 ** =evil-goggles=
 #+begin_src emacs-lisp
   (use-package evil-goggles
-    :ensure t
     :after evil
-    :init
-    (add-hook 'evil-mode-hook #'evil-goggles-mode)
     :config
     (evil-goggles-mode))
 #+end_src
 ** =evil-snipe=
 #+begin_src emacs-lisp
   (use-package evil-snipe
-    :ensure t
     :after evil
     :config
     (evil-snipe-mode +1)
@@ -828,11 +830,10 @@
 ** =undo-tree=
 #+begin_src emacs-lisp
   (use-package undo-tree
-    :ensure t
+    :demand t
     :after no-littering
-    :init
-    (global-undo-tree-mode 1)
     :config
+    (global-undo-tree-mode 1)
     (setq undo-tree-auto-save-history t
           undo-tree-history-directory-alist
           `(("." . ,(no-littering-expand-var-file-name "undo-tree-hist/")))))
@@ -841,15 +842,14 @@
 ** =vertico=
 #+begin_src emacs-lisp
   (use-package vertico
-    :ensure t
+    :demand t
     :custom
     ;; (vertico-scroll-margin 0) ;; Different scroll margin
     (vertico-count 15) ;; Show more candidates
     ;; (vertico-resize t) ;; Grow and shrink the Vertico minibuffer
     ;; (vertico-cycle t) ;; Enable cycling for `vertico-next/previous'
-    :init
-    (vertico-mode)
     :config
+    (vertico-mode)
     (after! (general)
             (general-setq enable-recursive-minibuffers t)
             (minibuffer-depth-indicate-mode)
@@ -860,7 +860,6 @@
 ** =vertico-directory=
 #+begin_src emacs-lisp
   (use-package vertico-directory
-    :ensure nil
     :after vertico general
     :init
     (add-hook 'rfn-esm-update-handlers #'vertico-directory-tidy)
@@ -876,9 +875,10 @@
 ** =consult=
 #+begin_src emacs-lisp
   (use-package consult
-    :ensure t
+    :demand t
     :after vertico
-    :init
+    :config
+    (require 'consult-xref)
     (advice-add #'register-preview :override #'consult-register-window)
     (setq register-preview-delay 0.5)
 
@@ -890,7 +890,6 @@
     (add-hook 'flymake-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flymake)))
     (add-hook 'flycheck-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flycheck)))
 
-    :config
     (consult-customize
      consult-theme :preview-key '(:debounce 0.1 any)
      consult-ripgrep consult-git-grep consult-grep consult-man
@@ -910,28 +909,26 @@
 ** =consult-flycheck=
 #+begin_src emacs-lisp
   (use-package consult-flycheck
-    :ensure t
     :after consult flycheck)
 #+end_src
 ** =marginalia=
 #+begin_src emacs-lisp
   (use-package marginalia
-    :ensure t
+    :demand t
     :after vertico
-    :init
-    (marginalia-mode)
     :custom
     (marginalia-align 'right)
     (marginalia-max-relative-age 0)
     :config
     ;; Add custom annotators for more informative completions
     (add-to-list 'marginalia-prompt-categories '("\\<face\\>" . face))
-    (add-to-list 'marginalia-prompt-categories '("\\<var\\>" . variable)))
+    (add-to-list 'marginalia-prompt-categories '("\\<var\\>" . variable))
+    (marginalia-mode))
 #+end_src
 ** =corfu=
 #+begin_src emacs-lisp
   (use-package corfu
-    :ensure t
+    :demand t
     :custom
     (corfu-cycle t)           ;; Enable cycling for `corfu-next/previous'
     (corfu-preselect 'prompt) ;; Always preselect the prompt
@@ -944,11 +941,10 @@
           ("S-TAB" . corfu-previous)
           ([backtab] . corfu-previous))
 
-    :init
-    (global-corfu-mode)
-    (corfu-popupinfo-mode 1)
-
     :config
+    (global-corfu-mode)
+    (require 'corfu-popupinfo)
+    (corfu-popupinfo-mode 1)
     (setq corfu-auto      t
           corfu-auto-delay  0.5
           corfu-auto-prefix 2
@@ -972,7 +968,6 @@
 ** =orderless=
 #+begin_src emacs-lisp
   (use-package orderless
-    :ensure t
     :custom
     (completion-styles '(orderless basic))
     (completion-category-overrides '((file (styles . (partial-completion basic)))
@@ -988,7 +983,6 @@
 ** =cape=
 #+begin_src emacs-lisp
   (use-package cape
-    :ensure t
     :config
     (add-to-list 'completion-at-point-functions #'cape-elisp-block)
     :hook (org-mode . (lambda ()
@@ -1016,7 +1010,6 @@
 #+begin_src emacs-lisp
   ;; TODO: make formatting work for babel elisp blocks?
   (use-package apheleia
-    :ensure t
     :config
     (add-hook! (nix-ts-mode-hook
                 nix-mode-hook
@@ -1029,22 +1022,22 @@
 ** =flycheck=
 #+begin_src emacs-lisp
   (use-package flycheck
-    :ensure t
     :config
     (add-hook #'rust-mode-hook #'flycheck-mode))
 #+end_src
 ** =tree-sitter=
 #+begin_src emacs-lisp
   (use-package tree-sitter-langs
-    :ensure t)
+    )
 
   (use-package tree-sitter
+    :demand t
     :after tree-sitter-langs
-    :ensure t
-    :init
-    (tree-sitter-require 'nix)
-    (tree-sitter-require 'rust)
     :config
+    ;; Suppress ABI version errors - grammars might be incompatible
+    (ignore-errors
+      (tree-sitter-require 'nix)
+      (tree-sitter-require 'rust))
     ;; (tree-sitter-hl-mode)
     ;; (add-hook 'rust-mode-hook #'tree-sitter-hl-mode)
     (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode)
@@ -1053,7 +1046,7 @@
 ** =yasnippet=
 #+begin_src emacs-lisp
   (use-package yasnippet
-    :ensure t
+    :demand t
     :config
     (yas-global-mode 1))
 #+end_src
@@ -1105,7 +1098,6 @@
 ** =rust-mode=
 #+begin_src emacs-lisp
   (use-package rust-mode
-    :ensure t
     :after (general)
     :config
     ;; treat '_' as part of a word in rust-mode, since rust uses snake case
@@ -1126,7 +1118,6 @@
 ** =nix-ts-mode=
 #+begin_src emacs-lisp
   (use-package nix-ts-mode
-    :ensure t
     :mode "\\.nix\\'"
     :custom
     (nix-nixfmt-bin "nixfmt")
@@ -1139,7 +1130,6 @@
 ** =fish-mode=
 #+begin_src emacs-lisp
   (use-package fish-mode
-    :ensure t
     :after (lsp-mode)
     :mode "\\.fish\\'"
     :config
@@ -1162,7 +1152,6 @@
 ** =lsp-mode=
 #+begin_src emacs-lisp
   (use-package lsp-mode
-    :ensure t
     :custom
     (lsp-rust-analyzer-cargo-load-out-dirs-from-check t)
     (lsp-rust-analyzer-proc-macro-enable t)
@@ -1189,7 +1178,6 @@
 ** =lsp-ui=
 #+begin_src emacs-lisp
   (use-package lsp-ui
-    :ensure t
     :custom
     (lsp-ui-doc-side 'right)
     (lsp-ui-doc-position 'at-point)
@@ -1218,33 +1206,32 @@
 ** =projectile=
 #+begin_src emacs-lisp
   (use-package projectile
-    :ensure t
-    :init
-    (projectile-mode +1)
+    :demand t
     :custom
     (projectile-enable-caching t)
     (projectile-globally-ignored-directories
      '(".git" ".log" "build" "node_modules" ".direnv" "target"))
     :config
+    (projectile-mode +1)
     (add-to-list 'projectile-project-root-files "shell.nix")
     (add-to-list 'projectile-project-root-files "flake.nix"))
 #+end_src
 ** =rg=
 #+begin_src emacs-lisp
   (use-package rg
-    :ensure t)
+    )
 #+end_src
 ** =direnv=
 #+begin_src emacs-lisp
   (use-package direnv
-    :ensure t
+    :demand t
     :config
     (direnv-mode))
 #+end_src
 ** =envrc=
 #+begin_src emacs-lisp
   (use-package envrc
-    :ensure t
+    :demand t
     :after (lsp-mode flycheck)
     :config
     (map-leader! :n (envrc-mode-map) "SPC"
@@ -1254,15 +1241,15 @@
 * Tools
 ** =magit=
 #+begin_src emacs-lisp
-  (use-package transient :ensure t) ;; Dep of Magit
+  (use-package transient ) ;; Dep of Magit
   (use-package magit
     :after transient
-    :ensure t)
+    )
 #+end_src
 ** =vterm=
 #+begin_src emacs-lisp
   (use-package vterm
-    :ensure nil ;; expected via nix
+     ;; expected via nix
     :commands vterm
     :custom
     (vterm-max-scrollback 10000)
@@ -1279,7 +1266,6 @@
 ** =ranger=
 #+begin_src emacs-lisp
   (use-package ranger
-    :ensure t
     :after evil
     :config
     (setq ranger-show-hidden t
@@ -1293,13 +1279,11 @@
 ** =all-the-icons=
 #+begin_src emacs-lisp
   (use-package all-the-icons
-    :ensure t
     :if (display-graphic-p))
 #+end_src
 ** =treemacs=
 #+begin_src emacs-lisp
   (use-package treemacs
-    :ensure t
     :defer t
     ;; NOTE: the naive version with a normal hook gets broken on config reload
     :hook (buffer-list-update-hook . (lambda ()
@@ -1393,38 +1377,37 @@
 #+begin_src emacs-lisp
   (use-package treemacs-evil
     :after (treemacs evil)
-    :ensure t)
+    )
 #+end_src
 ** =treemacs-projectile=
 #+begin_src emacs-lisp
   (use-package treemacs-projectile
     :after (treemacs projectile)
-    :ensure t)
+    )
 #+end_src
 ** =treemacs-icons-dired=
 #+begin_src emacs-lisp
   (use-package treemacs-icons-dired
     :hook (dired-mode . treemacs-icons-dired-enable-once)
-    :ensure t)
+    )
 #+end_src
 ** =treemacs-magit=
 #+begin_src emacs-lisp
   (use-package treemacs-magit
     :after (treemacs magit)
-    :ensure t)
+    )
 #+end_src
 ** =w3m=
 #+begin_src emacs-lisp
   (use-package w3m
-    :ensure t
     :config
     (add-hook 'w3m-mode-hook (lambda () (setq-local display-line-numbers nil))))
 #+end_src
 ** =gptel=
 #+begin_src emacs-lisp
   (use-package gptel
-    :ensure t
     :config
+    (require 'gptel-ollama)
     (setq gptel-default-mode 'org-mode
           gptel-track-media t
           gptel-org-branching-context t
@@ -1483,7 +1466,6 @@
 ** =elfeed=
 #+begin_src emacs-lisp
   (use-package elfeed
-    :ensure t
     :config
     (map! :n elfeed-show-mode-map
           "<up>" 'elfeed-show-prev
@@ -1610,7 +1592,7 @@
 ** =org-roam=
 #+begin_src emacs-lisp
   (use-package org-roam
-    :ensure t
+    :demand t
     :after org
     :config
     (unless (file-exists-p "~/Sync/org-roam")
@@ -1622,12 +1604,12 @@
 #+begin_src emacs-lisp
   (use-package org-roam-ui
     :after org-roam
-    :ensure t)
+    )
 #+end_src
 ** =evil-org=
 #+begin_src emacs-lisp
   (use-package evil-org
-    :ensure t
+    :demand t
     :after evil org
     :custom
     (evil-org-key-theme '(additional
@@ -1649,7 +1631,6 @@
 ** =org-superstar=
 #+begin_src emacs-lisp
   (use-package org-superstar
-    :ensure t
     :after org
     :config
     (add-hook 'org-mode-hook #'org-superstar-mode))
@@ -1657,7 +1638,6 @@
 ** =org-appear=
 #+begin_src emacs-lisp
   (use-package org-appear
-    :ensure t
     :after org
     :custom
     (org-appear-autolinks t)
@@ -1668,13 +1648,11 @@
 ** =gnuplot=
 #+begin_src emacs-lisp
   (use-package gnuplot
-    :ensure t
     :after org)
 #+end_src
 ** =org-fragtog=
 #+begin_src emacs-lisp
   (use-package org-fragtog
-    :ensure t
     :after org
     :config
     (add-hook 'org-mode-hook #'org-fragtog-mode))
@@ -1683,14 +1661,13 @@
 ** =recentf=
 #+begin_src emacs-lisp
   (use-package recentf
-    :ensure nil
+    :demand t
     :after no-littering
     :custom
     (recentf-max-saved-items 512)
-    :init
+    :config
     (recentf-mode 1)
     (load-file recentf-save-file)
-    :config
     (add-hook 'kill-emacs-hook 'recentf-save-list))
 #+end_src
 ** GC
@@ -1712,8 +1689,4 @@
 
   (add-function :after after-focus-change-function (lambda ()
     (run-with-timer 0.1 nil #'gc-unless-focused)))
-#+end_src
-** Elpaca process ques
-#+begin_src emacs-lisp
-  (elpaca-process-queues)
 #+end_src
