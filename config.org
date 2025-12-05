@@ -1148,6 +1148,167 @@
           (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
           (setf (alist-get 'ruff apheleia-formatters) '("ruff" "format" "-")))
 #+end_src
+** =ruby-mode=
+#+begin_src emacs-lisp
+  (use-package ruby-mode
+    :mode "\\.\\(?:a?rb\\|aslsx\\)\\'"
+    :mode "/\\(?:Brew\\|Fast\\|Rake\\|Gem\\)file\\'"
+    :interpreter "j?ruby\\(?:[0-9.]+\\)"
+    :config
+    (setq ruby-insert-encoding-magic-comment nil)
+
+    ;; Enable LSP
+    (add-hook 'ruby-mode-hook #'lsp-deferred)
+
+    ;; Enable tree-sitter
+    (add-hook 'ruby-mode-hook #'tree-sitter-mode)
+    (add-hook 'ruby-mode-hook #'tree-sitter-hl-mode)
+
+    ;; REPL integration
+    (after! (inf-ruby)
+            (add-hook 'inf-ruby-mode-hook
+                      (lambda () (setq-local mode-line-format nil))))
+
+    ;; Format with prettier or rubocop
+    (after! (apheleia)
+            ;; Use prettier if available, otherwise rubocop
+            (setf (alist-get 'ruby-mode apheleia-mode-alist) 'prettier-ruby)
+            (setf (alist-get 'prettier-ruby apheleia-formatters)
+                  '(npx "prettier" "--parser=ruby" filepath)))
+
+    ;; Keybindings
+    (map-leader! :n ruby-mode-map "SPC"
+                 "'" (cmd! (inf-ruby)))
+
+    (map! :n ruby-mode-map
+          "[" #'ruby-toggle-block
+          "{" #'ruby-toggle-block))
+
+  ;; Documentation comments
+  (use-package yard-mode
+    :hook ruby-mode)
+
+  ;; REPL
+  (use-package inf-ruby
+    :after ruby-mode
+    :config
+    (setq inf-ruby-default-implementation "pry"
+          inf-ruby-console-environment "development"))
+
+  ;; Ruby environment management with rbenv
+  (use-package rbenv
+    :hook (ruby-mode . rbenv-use-corresponding)
+    :config
+    (setq rbenv-show-active-ruby-in-modeline nil)
+    (global-rbenv-mode)
+    ;; Add rbenv shims to exec-path
+    (add-to-list 'exec-path (expand-file-name "shims" rbenv-installation-dir)))
+
+  ;; Package management
+  (use-package bundler
+    :after ruby-mode
+    :config
+    (map-leader! :n ruby-mode-map "SPC"
+                 :prefix ("b" . "bundle")
+                 "c" #'bundle-check
+                 "C" #'bundle-console
+                 "i" #'bundle-install
+                 "u" #'bundle-update
+                 "e" #'bundle-exec
+                 "o" #'bundle-open))
+
+  ;; Build tool
+  (use-package rake
+    :after ruby-mode
+    :config
+    (setq rake-completion-system 'default)
+    (map-leader! :n ruby-mode-map "SPC"
+                 :prefix ("k" . "rake")
+                 "k" #'rake
+                 "r" #'rake-rerun
+                 "R" #'rake-regenerate-cache
+                 "f" #'rake-find-task))
+
+  ;; Testing frameworks
+  (use-package rspec-mode
+    :mode ("/\\.rspec\\'" . text-mode)
+    :hook (ruby-mode . rspec-mode)
+    :config
+    (setq rspec-use-spring-when-possible nil
+          rspec-use-rvm nil
+          rspec-use-chruby nil)
+
+    (map-leader! :n (rspec-verifiable-mode-map rspec-mode-map) "SPC"
+                 :prefix ("t" . "test")
+                 "a" #'rspec-verify-all
+                 "r" #'rspec-rerun
+                 "v" #'rspec-verify
+                 "c" #'rspec-verify-continue
+                 "l" #'rspec-run-last-failed
+                 "T" #'rspec-toggle-spec-and-target
+                 "t" #'rspec-toggle-spec-and-target-find-example
+                 "f" #'rspec-verify-method
+                 "m" #'rspec-verify-matching
+                 "s" #'rspec-verify-single
+                 "e" #'rspec-toggle-example-pendingness))
+
+  (use-package minitest
+    :after ruby-mode
+    :config
+    (map-leader! :n minitest-mode-map "SPC"
+                 :prefix ("t" . "test")
+                 "r" #'minitest-rerun
+                 "a" #'minitest-verify-all
+                 "s" #'minitest-verify-single
+                 "v" #'minitest-verify))
+
+  ;; Rails integration
+  (use-package projectile-rails
+    :hook ((ruby-mode inf-ruby-mode) . projectile-rails-mode)
+    :config
+    (setq projectile-rails-expand-snippet nil
+          inf-ruby-console-environment "development")
+
+    (map-leader! :n projectile-rails-mode-map "SPC"
+                 :prefix ("r" . "rails")
+                 "r" #'projectile-rails-console
+                 "R" #'projectile-rails-server
+                 "m" #'projectile-rails-find-model
+                 "M" #'projectile-rails-find-current-model
+                 "c" #'projectile-rails-find-controller
+                 "C" #'projectile-rails-find-current-controller
+                 "v" #'projectile-rails-find-view
+                 "V" #'projectile-rails-find-current-view
+                 "s" #'projectile-rails-find-spec
+                 "S" #'projectile-rails-find-current-spec
+                 "h" #'projectile-rails-find-helper
+                 "H" #'projectile-rails-find-current-helper
+                 "j" #'projectile-rails-find-javascript
+                 "J" #'projectile-rails-find-current-javascript
+                 "l" #'projectile-rails-find-lib
+                 "g" #'projectile-rails-find-migration
+                 "G" #'projectile-rails-find-current-migration
+                 "x" #'projectile-rails-extract-region))
+
+  (use-package inflections
+    :after projectile-rails)
+
+  (use-package rails-routes
+    :after ruby-mode
+    :config
+    (general-def
+      :keymaps 'ruby-mode-map
+      "C-c o" #'rails-routes-insert
+      "C-c C-o" #'rails-routes-insert-no-cache
+      "C-c ! o" #'rails-routes-jump))
+
+  (use-package rails-i18n
+    :after ruby-mode
+    :config
+    (general-def
+      :keymaps 'ruby-mode-map
+      "C-c i" #'rails-i18n-insert-with-cache))
+#+end_src
 * LSP
 ** =lsp-mode=
 #+begin_src emacs-lisp
