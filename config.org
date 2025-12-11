@@ -890,6 +890,7 @@
     :after vertico
     :config
     (require 'consult-xref)
+    (require 'consult-imenu)
     (advice-add #'register-preview :override #'consult-register-window)
     (setq register-preview-delay 0.5)
 
