@@ -1845,10 +1845,15 @@
     :after no-littering
     :custom
     (recentf-max-saved-items 512)
+    ;; Auto-save periodically and don't block on errors
+    (recentf-auto-cleanup 'never)
     :config
     (recentf-mode 1)
-    (load-file recentf-save-file)
-    (add-hook 'kill-emacs-hook 'recentf-save-list))
+    ;; Don't block on file locks - load silently with error handling
+    (ignore-errors
+      (recentf-load-list))
+    ;; Save periodically (every 20 min) instead of only on exit
+    (run-at-time nil (* 20 60) 'recentf-save-list))
 #+end_src
 ** GC
 #+begin_src emacs-lisp
