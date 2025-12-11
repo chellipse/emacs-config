@@ -1035,6 +1035,9 @@
 #+begin_src emacs-lisp
   (use-package flycheck
     :config
+    (add-hook 'rust-mode-hook
+              (lambda ()
+                (setq-local flycheck-disabled-checkers '(rust-cargo rust-clippy))))
     (add-hook #'rust-mode-hook #'flycheck-mode))
 #+end_src
 ** =tree-sitter=
@@ -1329,6 +1332,10 @@
     (lsp-rust-analyzer-cargo-load-out-dirs-from-check t)
     (lsp-rust-analyzer-proc-macro-enable t)
     :config
+    (require 'lsp-modeline)
+    (require 'lsp-headerline)
+    (require 'lsp-diagnostics)
+    (setq lsp-diagnostics-provider :flycheck)
     (lsp-register-client
      (make-lsp-client
       :new-connection (lsp-stdio-connection '("fish-lsp" "start"))
@@ -1363,7 +1370,7 @@
     (setq lsp-ui-doc-include-signature t)
     (setq lsp-ui-doc-max-width 150
           lsp-ui-doc-max-height 40)
-    (map! :n lsp-ui-mode-map
+    (map! :n (evil-mode-map lsp-ui-mode-map)
                 "g y" #'lsp-goto-type-definition
                 "g i" #'lsp-goto-implementation
                 "g d" #'evil-goto-definition
