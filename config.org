@@ -839,6 +839,18 @@
           `(("." . ,(no-littering-expand-var-file-name "undo-tree-hist/")))))
 #+end_src
 * Completion
+** =prescient=
+#+begin_src emacs-lisp
+  (use-package prescient
+    :demand t
+    :config
+    (prescient-persist-mode 1))
+
+  (use-package vertico-prescient
+    :after (prescient vertico)
+    :config
+    (vertico-prescient-mode 1))
+#+end_src
 ** =vertico=
 #+begin_src emacs-lisp
   (use-package vertico
