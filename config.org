@@ -1163,6 +1163,10 @@
           (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
           (setf (alist-get 'ruff apheleia-formatters) '("ruff" "format" "-")))
 #+end_src
+** =yaml-mode=
+#+begin_src emacs-lisp
+  (add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-ts-mode))
+#+end_src
 ** =ruby-mode=
 #+begin_src emacs-lisp
   (use-package ruby-mode
