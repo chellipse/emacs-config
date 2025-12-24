@@ -1035,9 +1035,10 @@
 #+begin_src emacs-lisp
   (use-package flycheck
     :config
+    ;; instead of disabling we just select exactly what we want
     (add-hook 'rust-mode-hook
               (lambda ()
-                (setq-local flycheck-disabled-checkers '(rust-cargo rust-clippy))))
+                (setq-local flycheck-checker 'lsp)))
     (add-hook #'rust-mode-hook #'flycheck-mode))
 #+end_src
 ** =tree-sitter=
