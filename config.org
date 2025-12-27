@@ -1438,7 +1438,11 @@
   (use-package transient ) ;; Dep of Magit
   (use-package magit
     :after transient
-    )
+    :config
+    (general-def
+      :keymaps '(magit-file-section-map magit-hunk-section-map)
+      "RET" #'magit-diff-visit-file-other-window
+      "C-<return>" #'magit-diff-visit-worktree-file-other-window))
 #+end_src
 ** =vterm=
 #+begin_src emacs-lisp
