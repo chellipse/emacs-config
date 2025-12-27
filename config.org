@@ -158,6 +158,15 @@
     (interactive)
     (let ((search (read-string "Search: ")))
       (w3m (concat "https://en.wikipedia.org/wiki/Special:Search?search=" search))))
+
+  (defun copy-file-path ()
+    "Copy the current buffer's file path to the clipboard."
+    (interactive)
+    (if-let ((path (buffer-file-name)))
+        (progn
+          (kill-new path)
+          (message "Copied: %s" path))
+      (message "Buffer is not visiting a file")))
 #+end_src
 ** Binds
 #+begin_src emacs-lisp
