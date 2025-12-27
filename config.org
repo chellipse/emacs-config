@@ -1120,7 +1120,7 @@
                "c r" #'compile
                "c c" #'my-recompile)
 #+end_src
-** =rust-mode=
+** =rust=
 #+begin_src emacs-lisp
   (use-package rust-mode
     :after (general)
@@ -1140,7 +1140,7 @@
             (setq rust-mode-treesitter-derive t))
     (setq rust-cargo-default-arguments "--color=always"))
 #+end_src
-** =nix-ts-mode=
+** =nix=
 #+begin_src emacs-lisp
   (use-package nix-ts-mode
     :mode "\\.nix\\'"
@@ -1152,7 +1152,7 @@
             (setf (alist-get 'nixfmt apheleia-formatters)
                   '("nixfmt" "-"))))
 #+end_src
-** =fish-mode=
+** =fish=
 #+begin_src emacs-lisp
   (use-package fish-mode
     :after (lsp-mode)
@@ -1164,7 +1164,7 @@
       :major-modes '(fish-mode)
       :server-id 'fish-language-server)))
 #+end_src
-** =python-mode=
+** =python=
 #+begin_src emacs-lisp
   ;; we use the server from within uv so the lsp server is aware of deps.
   (setq lsp-pylsp-server-command '("uv" "run" "pylsp"))
@@ -1173,11 +1173,11 @@
           (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
           (setf (alist-get 'ruff apheleia-formatters) '("ruff" "format" "-")))
 #+end_src
-** =yaml-mode=
+** =yaml=
 #+begin_src emacs-lisp
   (add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-ts-mode))
 #+end_src
-** =ruby-mode=
+** =ruby=
 #+begin_src emacs-lisp
   (use-package ruby-ts-mode
     :mode "\\.\\(?:a?rb\\|aslsx\\)\\'"
