@@ -1169,6 +1169,10 @@
   ;; we use the server from within uv so the lsp server is aware of deps.
   (setq lsp-pylsp-server-command '("uv" "run" "pylsp"))
 
+  ;; treat '_' as part of a word in python-mode, since python uses snake case
+  (add-hook 'python-mode-hook
+            (lambda () (modify-syntax-entry ?_ "w")))
+
   (after! (apheleia)
           (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
           (setf (alist-get 'ruff apheleia-formatters) '("ruff" "format" "-")))
