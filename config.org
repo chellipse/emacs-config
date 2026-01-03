@@ -1190,7 +1190,10 @@
     (add-hook 'ruby-ts-mode-hook
               (lambda () (modify-syntax-entry ?_ "w")))
 
-    ;; Enable LSP
+    ;; Enable LSP (rubocop only)
+    (add-hook 'ruby-ts-mode-hook
+              (lambda ()
+                (setq-local lsp-disabled-clients '(ruby-lsp-ls ruby-ls solargraph steep-ls))))
     (add-hook 'ruby-ts-mode-hook #'lsp-deferred)
 
     ;; Format with rubocop
