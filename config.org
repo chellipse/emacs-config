@@ -1202,6 +1202,14 @@
             (setf (alist-get 'rubocop apheleia-formatters)
                   '("rubocop" "--stdin" filepath "-a" "--stderr" "--format" "quiet"))))
 #+end_src
+** =markdown=
+#+begin_src emacs-lisp
+  (use-package polymode)
+
+  (use-package poly-markdown
+    :after polymode
+    :mode ("\\.md\\'" . poly-markdown-mode))
+#+end_src
 * LSP
 ** =lsp-mode=
 #+begin_src emacs-lisp
