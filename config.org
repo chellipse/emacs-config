@@ -784,7 +784,7 @@
     (map-leader! :n '(global evil-mode-map) "f"
                  "f" #'consult-buffer
                  "l" #'consult-line
-                 "d" #'consult-fd
+                 "g" #'consult-fd
                  "r" #'consult-ripgrep
                  "m" #'consult-imenu
                  "o" #'consult-org-heading
