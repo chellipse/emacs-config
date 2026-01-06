@@ -53,15 +53,16 @@
 
 (set 'load-prefer-newer noninteractive)
 
-(setq-default inhibit-redisplay t
-              inhibit-message (not init-file-debug)
-              inhibit-x-resources t
-              frame-inhibit-implied-resize t)
+(when (not after-init-time)  ; nil until after-init-hook has run
+  (setq-default inhibit-redisplay t
+                inhibit-message (not init-file-debug))
+  (defun athame-init--reset-inhibited-vars-h ()
+    (setq-default inhibit-redisplay nil inhibit-message nil)
+    (remove-hook 'after-init-hook #'athame-init--reset-inhibited-vars-h))
+  (add-hook 'after-init-hook #'athame-init--reset-inhibited-vars-h -100))
 
-(defun athame-init--reset-inhibited-vars-h ()
-  (setq-default inhibit-redisplay nil inhibit-message nil)
-  (remove-hook 'after-init-hook #'athame-init--reset-inhibited-vars-h))
-(add-hook 'after-init-hook #'athame-init--reset-inhibited-vars-h -100)
+(setq-default inhibit-x-resources t
+              frame-inhibit-implied-resize t)
 
 (set 'inhibit-startup-screen t)
 (set 'inhibit-startup-echo-area-message user-login-name)
