@@ -1317,10 +1317,10 @@
 #+end_src
 ** =magit=
 #+begin_src emacs-lisp
-  (use-package transient ) ;; Dep of Magit
   (use-package magit
-    :after transient
+    :commands magit
     :config
+    (require 'transient)
     (general-def
       :keymaps '(magit-file-section-map magit-hunk-section-map)
       "RET" #'magit-diff-visit-file-other-window
@@ -1479,6 +1479,7 @@
 ** =w3m=
 #+begin_src emacs-lisp
   (use-package w3m
+    :commands w3m
     :config
     (add-hook 'w3m-mode-hook (lambda () (setq-local display-line-numbers nil))))
 #+end_src
@@ -1671,25 +1672,23 @@
 ** =org-roam=
 #+begin_src emacs-lisp
   (use-package org-roam
-    :demand t
-    :after org
-    :config
-    (unless (file-exists-p "~/Sync/org-roam")
-      (make-directory "~/Sync/org-roam" t))
+    :commands (org-roam-node-find)
+    :init
     (setq org-roam-directory "~/Sync/org-roam")
+    :config
+    (unless (file-exists-p org-roam-directory)
+      (make-directory org-roam-directory t))
     (org-roam-db-autosync-mode))
 #+end_src
 ** =org-roam-ui=
 #+begin_src emacs-lisp
   (use-package org-roam-ui
-    :after org-roam
-    )
+    :after org-roam)
 #+end_src
 ** =evil-org=
 #+begin_src emacs-lisp
   (use-package evil-org
-    :demand t
-    :after evil org
+    :hook (org-mode . evil-org-mode)
     :custom
     (evil-org-key-theme '(additional
                           calendar
@@ -1702,7 +1701,6 @@
                           todo))
 
     :config
-    (add-hook 'org-mode-hook #'evil-org-mode)
     (evil-org-set-key-theme)
     (require 'evil-org-agenda)
     (evil-org-agenda-set-keys))
