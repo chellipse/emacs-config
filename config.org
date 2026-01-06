@@ -1754,8 +1754,6 @@
 #+end_src
 ** GC
 #+begin_src emacs-lisp
-  (setq gc-cons-threshold (* 48 1024 1024))
-
   ;; we need to handle multi-frame emacs sessions, where switching frames from
   ;; emacs -> emacs is NOT a valid time to gc. however, when switching in this way,
   ;; there is a small period of time inbetween receiving notice of defocusing the
@@ -1767,8 +1765,11 @@
     "Will call garbage-collect if there are no focused emacs frames"
     (interactive)
     (unless (cl-some (lambda (frame) (frame-focus-state frame)) (frame-list))
-        (garbage-collect)))
+      (let ((gc-start-time (current-time)))
+        (garbage-collect)
+        (message "GC ran in %.3fs" (float-time (time-since gc-start-time))))))
 
-  (add-function :after after-focus-change-function (lambda ()
-    (run-with-timer 0.1 nil #'gc-unless-focused)))
+  (add-function :after after-focus-change-function
+                (lambda () (run-with-timer 0.1 nil #'gc-unless-focused)))
+
 #+end_src
