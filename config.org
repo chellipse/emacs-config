@@ -793,6 +793,7 @@
           "g e" #'evil-goto-line
           "t" #'comment-line)
     (map! :n '(global evil-mode-map)
+          "C-w n" #'transpose-frame
           "9" (cmd! (scroll-up 18))
           "0" (cmd! (scroll-down 18))
           "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
@@ -1309,6 +1310,11 @@
     (envrc-global-mode))
 #+end_src
 * Tools
+** =transpose-frame=
+#+begin_src emacs-lisp
+  (use-package transpose-frame
+    :commands transpose-frame)
+#+end_src
 ** =magit=
 #+begin_src emacs-lisp
   (use-package transient ) ;; Dep of Magit
