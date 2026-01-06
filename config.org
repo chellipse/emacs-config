@@ -1293,8 +1293,7 @@
 #+end_src
 ** =rg=
 #+begin_src emacs-lisp
-  (use-package rg
-    )
+  (use-package rg)
 #+end_src
 ** =direnv=
 #+begin_src emacs-lisp
