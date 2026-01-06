@@ -764,6 +764,7 @@
                  ;; Open
                  "o e" '("Open Eshell!" . eshell)
                  "o g" #'gptel
+                 "o c" '("⁺˚⋆ CLAUDE ⁺˚⋆" . my-claude-code)
                  "o r" '("Open Ranger!" . ranger)
                  "o m" '("Open a MAGIT!" . magit)
                  "o t" '("Open Treemacs!" . treemacs)
@@ -792,8 +793,11 @@
     (map! :nv '(global evil-mode-map)
           "g e" #'evil-goto-line
           "t" #'comment-line)
+    (map! :v '(global evil-mode-map)
+          "RET" #'claude-code-send-region)
     (map! :n '(global evil-mode-map)
           "C-w n" #'transpose-frame
+          "C-c s" #'claude-code-send-command-with-context
           "9" (cmd! (scroll-up 18))
           "0" (cmd! (scroll-down 18))
           "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
@@ -1542,6 +1546,47 @@
                             mistral:text
                             mistral:latest
                             llama3.2:latest))))
+#+end_src
+** =claude-code=
+#+begin_src emacs-lisp
+  (use-package claude-code
+    :commands (claude-code
+               claude-code-send-command-with-context
+               claude-code-send-region
+               claude-code-switch-to-buffer)
+    :init
+    (defun my-claude-code ()
+      "Open or switch to Claude Code buffer for current project."
+      (interactive)
+      (require 'claude-code)
+      (let* ((project-root (or (when (fboundp 'projectile-project-root)
+                                 (projectile-project-root))
+                               (when-let ((proj (project-current)))
+                                 (project-root proj))
+                               default-directory))
+             (buffer-name (format "*claude:%s:default*"
+                                  (abbreviate-file-name
+                                   (file-name-as-directory project-root))))
+             (existing-buffer (get-buffer buffer-name)))
+        (if existing-buffer
+            (claude-code-switch-to-buffer existing-buffer)
+          (claude-code))))
+
+    :config
+    (require 'inheritenv)
+    (require 'monet)
+    (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
+    (monet-mode 1)
+    (setq claude-code-terminal-backend 'vterm)
+
+    (defun my-claude-display-right (buffer)
+      "Display Claude buffer in right window."
+      (display-buffer buffer '((display-buffer-in-direction)
+                               (direction . right)
+                               (window-width . 0.5))))
+    (setq claude-code-display-window-fn #'my-claude-display-right)
+
+    (claude-code-mode))
 #+end_src
 ** =elfeed=
 #+begin_src emacs-lisp
