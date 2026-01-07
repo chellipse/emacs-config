@@ -74,6 +74,11 @@
 (set 'highlight-nonselected-windows nil)
 (set 'redisplay-skip-fontification-on-input t)
 
+;; Exec path for Nix
+(add-to-list 'exec-path "/run/current-system/sw/bin")
+(add-to-list 'exec-path "/Users/chelll/.nix-profile/bin")
+(add-to-list 'exec-path "~/.cargo/bin")
+
 (require 'use-package)
 (require 'org)
 
@@ -83,3 +88,4 @@
 (org-babel-load-file (expand-file-name "config.org" user-emacs-directory))
 
 ;;; init.el ends here
+(put 'scroll-left 'disabled nil)

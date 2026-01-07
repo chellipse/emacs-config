@@ -141,18 +141,27 @@
 
   (defun refresh-global-font-size ()
     (interactive)
-    (let ((height (* font-size 10)))
-      (set-face-attribute 'default nil :height height)))
+    ;; Construct font string: "FontName-Size"
+    (let ((font-string (format "%s-%d" default-font-mono font-size)))
+      ;; Update all existing frames
+      (dolist (frame (frame-list))
+        (set-frame-font font-string nil (list frame)))
+      ;; Update default for new frames
+      (add-to-list 'default-frame-alist (cons 'font font-string))
+      ;; Force redisplay to fix line numbers and other rendering
+      (redraw-display)))
 
   (defun increase-global-font-size ()
     (interactive)
     (setq font-size (+ font-size 1))
-    (refresh-global-font-size))
+    (refresh-global-font-size)
+    (message "Font size: %d" font-size))
 
   (defun decrease-global-font-size ()
     (interactive)
     (setq font-size (- font-size 1))
-    (refresh-global-font-size))
+    (refresh-global-font-size)
+    (message "Font size: %d" font-size))
 
   (defun search-wikipedia ()
     (interactive)
@@ -176,19 +185,22 @@
 * UI
 ** Font
 #+begin_src emacs-lisp
-  (setq default-font-mono "Iosevka Pro"
+  (setq default-font-mono "Iosevka Nerd Font Mono"
         default-font-propo "Iosevka Nerd Font Propo")
   ;; (setq default-font-mono "RobotoMono Nerd Font"
   ;; default-font-propo "Roboto")
 
-  (setq default-font-size 10)
+  (setq default-font-size 12)
   (unless (boundp 'font-size)
     (setq font-size default-font-size))
 
-  (set-face-attribute 'default nil
-                      :height (* font-size 10)
-                      :family default-font-mono)
-  (set-face-attribute 'variable-pitch nil
+  ;; Set font globally for all frames (current and future)
+  (let ((font-string (format "%s-%d" default-font-mono font-size)))
+    (set-frame-font font-string nil t)
+    (add-to-list 'default-frame-alist (cons 'font font-string)))
+
+  ;; Set variable-pitch font globally
+  (set-face-attribute 'variable-pitch t
                       :family default-font-propo)
 #+end_src
 ** Statusline
@@ -630,7 +642,7 @@
                                       ibuffer-mode
                                       dired-mode
                                       occur-mode))
-  (global-whitespace-mode 1)
+  ;; (global-whitespace-mode 1)
 #+end_src
 ** =hl-todo=
 #+begin_src emacs-lisp
@@ -663,16 +675,16 @@
     ;; (defvar title-list nil)
     ;; (setq dashboard-banner-logo-title
     ;;       (nth (random (length title-list)) title-list))
-    (setq dashboard-startup-banner
-          (let* ((img-file (expand-file-name "~/Sync/emacs.jpg"))
-                 (txt-file (expand-file-name "banners/looking.txt" user-emacs-directory))
-                 (img-exists (file-exists-p img-file))
-                 (txt-exists (file-exists-p txt-file)))
-            (cond
-             ((and img-exists txt-exists) (cons img-file txt-file))
-             (img-exists (cons img-file 3))
-             (txt-exists (cons 'logo txt-file))
-             (t (cons 'logo 3)))))
+    ;; (setq dashboard-startup-banner
+    ;;       (let* ((img-file (expand-file-name "~/Sync/emacs.jpg"))
+    ;;              (txt-file (expand-file-name "banners/looking.txt" user-emacs-directory))
+    ;;              (img-exists (file-exists-p img-file))
+    ;;              (txt-exists (file-exists-p txt-file)))
+    ;;         (cond
+    ;;          ((and img-exists txt-exists) (cons img-file txt-file))
+    ;;          (img-exists (cons img-file 3))
+    ;;          (txt-exists (cons 'logo txt-file))
+    ;;          (t (cons 'logo 3)))))
 
     (setq dashboard-items '((recents   . 10)
                             ;; (bookmarks . 5)
@@ -739,7 +751,7 @@
     (setq evil-undo-system 'undo-tree
           evil-want-integration t
           evil-want-keybinding nil
-          evil-flash-delay 10 ;; Search flash after n/N. Default: 2 (seconds)
+          evil-flash-delay 30 ;; Search flash after n/N. Default: 2 (seconds)
           evil-want-C-u-scroll t
           evil-want-C-i-jump t)
     :config
@@ -803,6 +815,8 @@
           "C-c 2" #'claude-code-send-2
           "C-c 3" #'claude-code-send-3
           "C-x x" #'revert-buffer-quick
+          "C-h" (cmd! (scroll-right 24))
+          "C-l" (cmd! (scroll-left 24))
           "9" (cmd! (scroll-up 18))
           "0" (cmd! (scroll-down 18))
           "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
@@ -811,10 +825,6 @@
           "C-+" (cmd! (setq font-size default-font-size) (refresh-global-font-size))
           "C-=" #'increase-global-font-size
           "C--" #'decrease-global-font-size
-          "M-j" #'evil-window-left
-          "M-k" #'evil-window-down
-          "M-l" #'evil-window-up
-          "M-;" #'evil-window-right
           "U" #'evil-redo)
     )
 #+end_src
@@ -855,7 +865,9 @@
     (global-undo-tree-mode 1)
     (setq undo-tree-auto-save-history t
           undo-tree-history-directory-alist
-          `(("." . ,(no-littering-expand-var-file-name "undo-tree-hist/")))))
+          `(("." . ,(no-littering-expand-var-file-name "undo-tree-hist/"))))
+    ;; Don't warn about undo history conflicts between instances
+    (setq undo-tree-enable-undo-in-region nil))
 #+end_src
 * Completion
 ** =prescient=
@@ -1748,7 +1760,12 @@
     :config
     (unless (file-exists-p org-roam-directory)
       (make-directory org-roam-directory t))
-    (org-roam-db-autosync-mode))
+    ;; Reduce SQLite locking issues between instances
+    (setq org-roam-db-update-on-save nil
+          org-roam-database-connector 'sqlite-builtin)
+    ;; Use autosync but with error handling to prevent hangs
+    (ignore-errors
+      (org-roam-db-autosync-mode)))
 #+end_src
 ** =org-roam-ui=
 #+begin_src emacs-lisp
