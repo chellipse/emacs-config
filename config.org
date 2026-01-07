@@ -1670,6 +1670,21 @@
 
   (after! (apheleia)
           (advice-add 'org-edit-src-exit :around #'my/org-edit-src-exit-advice))
+#+end_src
+** =org=
+#+begin_src emacs-lisp
+  (defun my/org-smart-return ()
+    (interactive)
+    (if (org-in-src-block-p)
+        (org-edit-special)
+      (org-return)))
+
+  (map-after! (org) :n org-mode-map
+              "RET" #'my/org-smart-return
+              "C-'" #'org-edit-src-code)
+
+  (map-after! (org-src) :n org-src-mode-map
+              "RET" #'org-edit-src-exit)
 
   (setq org-preview-latex-image-directory "/tmp/ltximg/"
         org-preview-latex-default-process 'luadvisvgm)
