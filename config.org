@@ -1576,7 +1576,8 @@
     (require 'monet)
     (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
     (monet-mode 1)
-    (setq claude-code-terminal-backend 'vterm)
+    (require 'eat)
+    ;;(setq claude-code-terminal-backend 'vterm)
 
     (defun my-claude-display-right (buffer)
       "Display Claude buffer in right window."
