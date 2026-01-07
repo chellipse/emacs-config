@@ -905,8 +905,18 @@
 ** =consult=
 #+begin_src emacs-lisp
   (use-package consult
-    :demand t
-    :after vertico
+    :commands (consult-buffer
+               consult-line
+               consult-fd
+               consult-ripgrep
+               consult-imenu
+               consult-org-heading
+               consult-recent-file)
+    :init
+    (defvar dynamic-diagnostic-fn #'consult-flymake
+      "Consult diagnostics dyn fn, changes between consult-flymake and consult-flycheck based on mode")
+    (add-hook 'flymake-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flymake)))
+    (add-hook 'flycheck-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flycheck)))
     :config
     (require 'consult-xref)
     (require 'consult-imenu)
@@ -915,11 +925,6 @@
 
     (setq xref-show-xrefs-function #'consult-xref
           xref-show-definitions-function #'consult-xref)
-
-    (defvar dynamic-diagnostic-fn #'consult-flymake
-      "Consult diagnostics dyn fn, changes between consult-flymake and consult-flycheck based on mode")
-    (add-hook 'flymake-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flymake)))
-    (add-hook 'flycheck-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flycheck)))
 
     (consult-customize
      consult-theme :preview-key '(:debounce 0.1 any)
@@ -940,7 +945,7 @@
 ** =consult-flycheck=
 #+begin_src emacs-lisp
   (use-package consult-flycheck
-    :after consult flycheck)
+    :commands consult-flycheck)
 #+end_src
 ** =marginalia=
 #+begin_src emacs-lisp
@@ -1158,14 +1163,14 @@
 ** =fish-mode=
 #+begin_src emacs-lisp
   (use-package fish-mode
-    :after (lsp-mode)
     :mode "\\.fish\\'"
     :config
     (lsp-register-client
-      (make-lsp-client
+     (make-lsp-client
       :new-connection (lsp-stdio-connection '("fish-lsp" "start"))
       :major-modes '(fish-mode)
-      :server-id 'fish-language-server)))
+      :server-id 'fish-language-server))
+    (add-to-list 'lsp-language-id-configuration '(fish-mode . "fish")))
 #+end_src
 ** =python-ts-mode=
 #+begin_src emacs-lisp
@@ -1204,7 +1209,6 @@
     (add-hook 'ruby-ts-mode-hook
               (lambda ()
                 (setq-local lsp-disabled-clients '(ruby-lsp-ls ruby-ls solargraph steep-ls))))
-    (add-hook 'ruby-ts-mode-hook #'lsp-deferred)
 
     ;; Format with rubocop
     (after! (apheleia)
@@ -1224,9 +1228,24 @@
 ** =lsp-mode=
 #+begin_src emacs-lisp
   (use-package lsp-mode
+    :commands (lsp-mode lsp-deferred lsp-register-client)
     :custom
     (lsp-rust-analyzer-cargo-load-out-dirs-from-check t)
     (lsp-rust-analyzer-proc-macro-enable t)
+    :init
+    ;; NOTE: lsp-deferred is required for catching the right envrc env
+    (add-hook! (python-mode-hook
+                python-ts-mode-hook
+                nix-mode-hook
+                nix-ts-mode-hook
+                rust-mode-hook
+                rust-ts-mode-hook
+                ruby-ts-mode-hook
+                fish-mode-hook
+                c-mode-hook
+                c-ts-mode-hook
+                c++-mode-hook
+                c++-ts-mode-hook) #'lsp-deferred)
     :config
     (require 'lsp-modeline)
     (require 'lsp-headerline)
@@ -1242,22 +1261,12 @@
           lsp-lens-enable nil
           ;; NOTE: rust-analyzer's textDocument/documentSymbol outputs aren't to my taste
           lsp-enable-imenu nil
-          lsp-auto-configure t)
-    ;; NOTE: lsp-deferred is required for catching the right envrc env
-    (add-hook! (python-mode-hook
-                python-ts-mode-hook
-                nix-mode-hook
-                nix-ts-mode-hook
-                rust-mode-hook
-                rust-ts-mode-hook
-                c-mode-hook
-                c-ts-mode-hook
-                c++-mode-hook
-                c++-ts-mode-hook) #'lsp-deferred))
+          lsp-auto-configure t))
 #+end_src
 ** =lsp-ui=
 #+begin_src emacs-lisp
   (use-package lsp-ui
+    :commands (lsp-ui-doc-toggle lsp-ui-doc-glance)
     :custom
     (lsp-ui-doc-side 'right)
     (lsp-ui-doc-position 'at-point)
@@ -1271,11 +1280,11 @@
     (setq lsp-ui-doc-max-width 150
           lsp-ui-doc-max-height 40)
     (map! :n (evil-mode-map lsp-ui-mode-map)
-                "g y" #'lsp-goto-type-definition
-                "g i" #'lsp-goto-implementation
-                "g d" #'evil-goto-definition
-                "," #'lsp-ui-doc-toggle
-                "." #'lsp-ui-doc-glance))
+          "g y" #'lsp-goto-type-definition
+          "g i" #'lsp-goto-implementation
+          "g d" #'evil-goto-definition
+          "," #'lsp-ui-doc-toggle
+          "." #'lsp-ui-doc-glance))
 #+end_src
 ** =ansi-color=
 #+begin_src emacs-lisp
@@ -1298,7 +1307,8 @@
 #+end_src
 ** =rg=
 #+begin_src emacs-lisp
-  (use-package rg)
+  (use-package rg
+    :defer t)
 #+end_src
 ** =direnv=
 #+begin_src emacs-lisp
@@ -1310,8 +1320,6 @@
 ** =envrc=
 #+begin_src emacs-lisp
   (use-package envrc
-    :demand t
-    :after (lsp-mode flycheck)
     :config
     (map-leader! :n (envrc-mode-map) "SPC"
                 "b r" 'envrc-reload)
@@ -1353,7 +1361,7 @@
 ** =ranger=
 #+begin_src emacs-lisp
   (use-package ranger
-    :after evil
+    :commands ranger
     :config
     (setq ranger-show-hidden t
           ranger-preview-delay 0.1
@@ -1361,7 +1369,7 @@
           ranger-width-preview 0.5
           ranger-max-preview-size 10)
     (map! :n ranger-mode-map
-            "DEL" #'ranger-toggle-dotfiles))
+          "DEL" #'ranger-toggle-dotfiles))
 #+end_src
 ** =all-the-icons=
 #+begin_src emacs-lisp
@@ -1463,26 +1471,22 @@
 ** =treemacs-evil=
 #+begin_src emacs-lisp
   (use-package treemacs-evil
-    :after (treemacs evil)
-    )
+    :after (treemacs evil))
 #+end_src
 ** =treemacs-projectile=
 #+begin_src emacs-lisp
   (use-package treemacs-projectile
-    :after (treemacs projectile)
-    )
+    :after (treemacs projectile))
 #+end_src
 ** =treemacs-icons-dired=
 #+begin_src emacs-lisp
   (use-package treemacs-icons-dired
-    :hook (dired-mode . treemacs-icons-dired-enable-once)
-    )
+    :hook (dired-mode . treemacs-icons-dired-enable-once))
 #+end_src
 ** =treemacs-magit=
 #+begin_src emacs-lisp
   (use-package treemacs-magit
-    :after (treemacs magit)
-    )
+    :after (treemacs magit))
 #+end_src
 ** =w3m=
 #+begin_src emacs-lisp
@@ -1494,6 +1498,7 @@
 ** =gptel=
 #+begin_src emacs-lisp
   (use-package gptel
+    :commands gptel
     :config
     (require 'gptel-ollama)
     (setq gptel-default-mode 'org-mode
@@ -1596,6 +1601,7 @@
 ** =elfeed=
 #+begin_src emacs-lisp
   (use-package elfeed
+    :commands elfeed
     :config
     (map! :n elfeed-show-mode-map
           "<up>" 'elfeed-show-prev
