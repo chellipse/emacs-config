@@ -798,6 +798,11 @@
     (map! :n '(global evil-mode-map)
           "C-w n" #'transpose-frame
           "C-c s" #'claude-code-send-command-with-context
+          "C-c f" #'claude-code-fix-error-at-point
+          "C-c 1" #'claude-code-send-1
+          "C-c 2" #'claude-code-send-2
+          "C-c 3" #'claude-code-send-3
+          "C-x x" #'revert-buffer-quick
           "9" (cmd! (scroll-up 18))
           "0" (cmd! (scroll-down 18))
           "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
