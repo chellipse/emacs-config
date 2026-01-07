@@ -1028,7 +1028,7 @@
   (setq electric-pair-pairs '())
   (defun my-electric-pair-specific-mode-config ()
     (cond
-     ((member major-mode '(rust-mode))
+     ((member major-mode '(rust-mode rust-ts-mode))
       (setq-local electric-pair-pairs '((?\" . ?\")
                                         (?\' . ?\')
                                         (?\{ . ?\})
@@ -1042,12 +1042,16 @@
   ;; TODO: make formatting work for babel elisp blocks?
   (use-package apheleia
     :config
-    (add-hook! (nix-ts-mode-hook
-                nix-mode-hook
+    (add-hook! (nix-mode-hook
+                nix-ts-mode-hook
                 rust-mode-hook
+                rust-ts-mode-hook
                 c-mode-hook
+                c-ts-mode-hook
                 c++-mode-hook
+                c++-ts-mode-hook
                 python-mode-hook
+                python-ts-mode-hook
                 emacs-lisp-mode-hook) #'apheleia-mode))
 #+end_src
 ** =flycheck=
@@ -1055,28 +1059,18 @@
   (use-package flycheck
     :config
     ;; instead of disabling we just select exactly what we want
-    (add-hook 'rust-mode-hook
+    (add-hook! (rust-mode-hook rust-ts-mode-hook)
               (lambda ()
                 (setq-local flycheck-checker 'lsp)))
-    (add-hook #'rust-mode-hook #'flycheck-mode))
+    (add-hook! (rust-mode-hook rust-ts-mode-hook) #'flycheck-mode))
 #+end_src
 ** =tree-sitter=
 #+begin_src emacs-lisp
-  (use-package tree-sitter-langs
-    )
-
-  (use-package tree-sitter
-    :demand t
-    :after tree-sitter-langs
-    :config
-    ;; Suppress ABI version errors - grammars might be incompatible
-    (ignore-errors
-      (tree-sitter-require 'nix)
-      (tree-sitter-require 'rust))
-    ;; (tree-sitter-hl-mode)
-    ;; (add-hook 'rust-mode-hook #'tree-sitter-hl-mode)
-    (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode)
-    (global-tree-sitter-mode))
+  ;; TODO: remove all references to non-ts-mode modes if everything goes to plan
+  (use-package treesit
+    :defer t
+    :init
+    (setq treesit-font-lock-level 4))
 #+end_src
 ** =yasnippet=
 #+begin_src emacs-lisp
@@ -1130,27 +1124,26 @@
                "c r" #'compile
                "c c" #'my-recompile)
 #+end_src
-** =rust=
+** =rust-ts-mode=
 #+begin_src emacs-lisp
-  (use-package rust-mode
-    :after (general)
+  (use-package rust-ts-mode
+    :mode "\\.rs\\'"
     :config
-    ;; treat '_' as part of a word in rust-mode, since rust uses snake case
-    (add-hook 'rust-mode-hook
+    ;; treat '_' as part of a word in rust-ts-mode, since rust uses snake case
+    (add-hook 'rust-ts-mode-hook
               (lambda () (modify-syntax-entry ?_ "w")))
 
     (after! (eglot)
-            (add-hook 'rust-mode-hook 'eglot-ensure)
+            (add-hook 'rust-ts-mode-hook 'eglot-ensure)
             (add-to-list 'eglot-server-programs
-                         '(rust-mode . ("rust-analyzer"))))
+                         '(rust-ts-mode . ("rust-analyzer"))))
     (after! (apheleia)
-            (setf (alist-get 'rust-mode apheleia-mode-alist) 'rustfmt)
+            (setf (alist-get 'rust-ts-mode apheleia-mode-alist) 'rustfmt)
             (setf (alist-get 'rustfmt apheleia-formatters) '("rustfmt" "--edition" "2021")))
-    (after! (tree-sitter-langs)
-            (setq rust-mode-treesitter-derive t))
+
     (setq rust-cargo-default-arguments "--color=always"))
 #+end_src
-** =nix=
+** =nix-ts-mode=
 #+begin_src emacs-lisp
   (use-package nix-ts-mode
     :mode "\\.nix\\'"
@@ -1162,7 +1155,7 @@
             (setf (alist-get 'nixfmt apheleia-formatters)
                   '("nixfmt" "-"))))
 #+end_src
-** =fish=
+** =fish-mode=
 #+begin_src emacs-lisp
   (use-package fish-mode
     :after (lsp-mode)
@@ -1174,24 +1167,27 @@
       :major-modes '(fish-mode)
       :server-id 'fish-language-server)))
 #+end_src
-** =python=
+** =python-ts-mode=
 #+begin_src emacs-lisp
+  (use-package python-ts-mode
+    :mode "\\.py\\'")
+
   ;; we use the server from within uv so the lsp server is aware of deps.
   (setq lsp-pylsp-server-command '("uv" "run" "pylsp"))
 
   ;; treat '_' as part of a word in python-mode, since python uses snake case
-  (add-hook 'python-mode-hook
+  (add-hook! (python-mode-hook python-ts-mode-hook)
             (lambda () (modify-syntax-entry ?_ "w")))
 
   (after! (apheleia)
-          (setf (alist-get 'python-mode apheleia-mode-alist) 'ruff)
+          (setf (alist-get 'python-ts-mode apheleia-mode-alist) 'ruff)
           (setf (alist-get 'ruff apheleia-formatters) '("ruff" "format" "-")))
 #+end_src
-** =yaml=
+** =yaml-ts-mode=
 #+begin_src emacs-lisp
   (add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-ts-mode))
 #+end_src
-** =ruby=
+** =ruby-ts-mode=
 #+begin_src emacs-lisp
   (use-package ruby-ts-mode
     :mode "\\.\\(?:a?rb\\|aslsx\\)\\'"
@@ -1216,7 +1212,7 @@
             (setf (alist-get 'rubocop apheleia-formatters)
                   '("rubocop" "--stdin" filepath "-a" "--stderr" "--format" "quiet"))))
 #+end_src
-** =markdown=
+** =poly-markdown=
 #+begin_src emacs-lisp
   (use-package polymode)
 
@@ -1249,11 +1245,15 @@
           lsp-auto-configure t)
     ;; NOTE: lsp-deferred is required for catching the right envrc env
     (add-hook! (python-mode-hook
+                python-ts-mode-hook
                 nix-mode-hook
                 nix-ts-mode-hook
                 rust-mode-hook
+                rust-ts-mode-hook
+                c-mode-hook
+                c-ts-mode-hook
                 c++-mode-hook
-                c-mode-hook) #'lsp-deferred))
+                c++-ts-mode-hook) #'lsp-deferred))
 #+end_src
 ** =lsp-ui=
 #+begin_src emacs-lisp
