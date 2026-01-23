@@ -176,6 +176,12 @@
           (kill-new path)
           (message "Copied: %s" path))
       (message "Buffer is not visiting a file")))
+
+  (defun ediff-current-buffer ()
+    "Run ediff-buffers with current buffer as first argument."
+    (interactive)
+    (ediff-buffers (current-buffer)
+                   (read-buffer "Buffer to compare with: " nil t)))
 #+end_src
 ** Binds
 #+begin_src emacs-lisp
@@ -760,6 +766,7 @@
                  ";" #'eval-expression
                  ":" #'eval-last-sexp
                  "a" #'lsp-execute-code-action
+                 "d" #'ediff-current-buffer
                  "k" #'lsp-ui-doc-glance
                  "r" #'lsp-rename
                  ;; Buffers
@@ -781,6 +788,8 @@
                  "o m" '("Open a MAGIT!" . magit)
                  "o t" '("Open Treemacs!" . treemacs)
                  "o v" '("Open vTerm!" . vterm)
+                 ;; Magit
+                 "m b" '("Magit blame" . magit-blame-addition)
                  ;; Search
                  "s w" '("Search: Wikipedia" . search-wikipedia)
                  ;; Window
@@ -806,8 +815,9 @@
           "g e" #'evil-goto-line
           "t" #'comment-line)
     (map! :v '(global evil-mode-map)
-          "RET" #'claude-code-send-region)
+          "RET" (cmd! (claude-code-send-region '(4))))
     (map! :n '(global evil-mode-map)
+          "C-f" #'evil-window-next
           "C-w n" #'transpose-frame
           "C-c s" #'claude-code-send-command-with-context
           "C-c f" #'claude-code-fix-error-at-point
@@ -815,8 +825,6 @@
           "C-c 2" #'claude-code-send-2
           "C-c 3" #'claude-code-send-3
           "C-x x" #'revert-buffer-quick
-          "C-h" (cmd! (scroll-right 24))
-          "C-l" (cmd! (scroll-left 24))
           "9" (cmd! (scroll-up 18))
           "0" (cmd! (scroll-down 18))
           "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
@@ -1189,8 +1197,8 @@
   (use-package python-ts-mode
     :mode "\\.py\\'")
 
-  ;; we use the server from within uv so the lsp server is aware of deps.
-  (setq lsp-pylsp-server-command '("uv" "run" "pylsp"))
+  ;; use globally installed pylsp (via uv tool install python-lsp-server)
+  (setq lsp-pylsp-server-command '("pylsp"))
 
   ;; treat '_' as part of a word in python-mode, since python uses snake case
   (add-hook! (python-mode-hook python-ts-mode-hook)
@@ -1227,6 +1235,16 @@
             (setf (alist-get 'ruby-ts-mode apheleia-mode-alist) 'rubocop)
             (setf (alist-get 'rubocop apheleia-formatters)
                   '("rubocop" "--stdin" filepath "-a" "--stderr" "--format" "quiet"))))
+#+end_src
+** =c/c++-ts-mode=
+#+begin_src emacs-lisp
+  (add-to-list 'auto-mode-alist '("\\.cppz\\'" . c++-ts-mode))
+  (add-to-list 'auto-mode-alist '("\\.hz\\'" . c++-ts-mode))
+#+end_src
+** =typescript-ts-mode=
+#+begin_src emacs-lisp
+  (use-package typescript-ts-mode
+    :mode ("\\.ts\\'" "\\.tsx\\'"))
 #+end_src
 ** =poly-markdown=
 #+begin_src emacs-lisp
@@ -1370,6 +1388,13 @@
                 "C-c C-c" 'vterm--self-insert
                 "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0))))
 #+end_src
+** =eat=
+#+begin_src emacs-lisp
+  (use-package eat
+    :commands eat
+    :hook (eat-mode . (lambda ()
+                        (map! :i 'local "C-y" 'eat-yank))))
+#+end_src
 ** =ranger=
 #+begin_src emacs-lisp
   (use-package ranger
@@ -1382,6 +1407,12 @@
           ranger-max-preview-size 10)
     (map! :n ranger-mode-map
           "DEL" #'ranger-toggle-dotfiles))
+#+end_src
+** =dired=
+#+begin_src emacs-lisp
+  (setq insert-directory-program
+        (if (eq system-type 'darwin) "gls" "ls"))
+  (setq dired-listing-switches "-al --group-directories-first")
 #+end_src
 ** =all-the-icons=
 #+begin_src emacs-lisp
@@ -1572,6 +1603,7 @@
 #+begin_src emacs-lisp
   (use-package claude-code
     :commands (claude-code
+               claude-code-continue
                claude-code-send-command-with-context
                claude-code-send-region
                claude-code-switch-to-buffer)
@@ -1607,6 +1639,34 @@
                                (direction . right)
                                (window-width . 0.5))))
     (setq claude-code-display-window-fn #'my-claude-display-right)
+
+    ;; Buffer terminal width to prevent graphical bugs from line number growth
+    (defvar my/eat-width-buffer 1
+      "Number of columns to subtract from terminal width.")
+
+    (defvar my/eat-max-width 100
+      "Maximum terminal width to report.")
+
+    (defun my/eat-width-buffer-advice (orig-fun &rest args)
+      "Adjust reported terminal width: subtract buffer and cap at max."
+      (let ((result (apply orig-fun args)))
+        (when (and result (consp result) (numberp (car result)))
+          (setcar result (min my/eat-max-width (- (car result) my/eat-width-buffer))))
+        result))
+
+    (advice-add 'eat--adjust-process-window-size
+                :around #'my/eat-width-buffer-advice)
+
+    ;; macOS desktop notifications via terminal-notifier
+    (when (eq system-type 'darwin)
+      (setq claude-code-notification-function
+            (lambda (title message)
+              (let ((buf-name (buffer-name)))
+                (start-process "claude-notify" nil "terminal-notifier"
+                               "-title" buf-name
+                               "-subtitle" title
+                               "-message" message
+                               "-sound" "default")))))
 
     (claude-code-mode))
 #+end_src
