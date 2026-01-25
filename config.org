@@ -1769,8 +1769,9 @@
               "RET" #'my/org-smart-return
               "C-'" #'org-edit-src-code)
 
-  (map-after! (org-src) :n org-src-mode-map
-              "RET" #'org-edit-src-exit)
+  (add-hook 'org-src-mode-hook
+            (lambda ()
+              (evil-local-set-key 'normal (kbd "RET") #'org-edit-src-exit)))
 
   (setq org-preview-latex-image-directory "/tmp/ltximg/"
         org-preview-latex-default-process 'luadvisvgm)
