@@ -1653,7 +1653,7 @@
     (defvar my/eat-width-buffer 1
       "Number of columns to subtract from terminal width.")
 
-    (defvar my/eat-max-width 100
+    (defvar my/eat-max-width 80
       "Maximum terminal width to report.")
 
     (defun my/eat-width-buffer-advice (orig-fun &rest args)
