@@ -817,8 +817,8 @@
           "t" #'comment-line)
     (map! :v '(global evil-mode-map)
           "RET" (cmd! (claude-code-send-region '(4))))
-    (map! :n '(global evil-mode-map)
-          "C-f" #'evil-window-next
+    (map! :ni '(global evil-mode-map)
+          "C-f" #'other-window
           "C-w n" #'transpose-frame
           "C-c s" #'claude-code-send-command-with-context
           "C-c f" #'claude-code-fix-error-at-point
@@ -1400,7 +1400,9 @@
   (use-package eat
     :commands eat
     :hook (eat-mode . (lambda ()
-                        (map! :i 'local "C-y" 'eat-yank))))
+                        (map! :ni 'local
+                              "C-f" 'other-window
+                              "C-y" 'eat-yank))))
 #+end_src
 ** =ranger=
 #+begin_src emacs-lisp
