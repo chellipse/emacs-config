@@ -1326,7 +1326,16 @@
 ** =ansi-color=
 #+begin_src emacs-lisp
   (use-package ansi-color
-      :hook (compilation-filter . ansi-color-compilation-filter))
+      :hook ((compilation-filter . ansi-color-compilation-filter)
+             (diff-mode . (lambda ()
+                            (let ((inhibit-read-only t))
+                              (ansi-color-apply-on-region (point-min) (point-max)))
+                            ;; Also apply after font-lock in case it runs later
+                            (add-hook 'font-lock-mode-hook
+                                      (lambda ()
+                                        (let ((inhibit-read-only t))
+                                          (ansi-color-apply-on-region (point-min) (point-max))))
+                                      nil t)))))
 #+end_src
 * Projects
 ** =projectile=
