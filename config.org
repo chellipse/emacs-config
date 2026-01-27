@@ -1649,6 +1649,31 @@
     (require 'monet)
     (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
     (monet-mode 1)
+
+    ;; Custom diff cleanup that preserves window layout
+    (defun my/monet-diff-cleanup-tool (diff-context)
+      "Clean up diff session without deleting the window."
+      (let ((diff-buffer (alist-get 'diff-buffer diff-context))
+            (old-temp-buffer (alist-get 'old-temp-buffer diff-context))
+            (new-temp-buffer (alist-get 'new-temp-buffer diff-context))
+            (kill-buffer-query-functions nil))
+        (when (and diff-buffer (buffer-live-p diff-buffer))
+          (with-current-buffer diff-buffer
+            (set-buffer-modified-p nil))
+          (let ((diff-window (get-buffer-window diff-buffer)))
+            (when (and diff-window (eq (selected-window) diff-window))
+              (switch-to-prev-buffer)))
+          (kill-buffer diff-buffer))
+        (when (and new-temp-buffer (buffer-live-p new-temp-buffer))
+          (with-current-buffer new-temp-buffer
+            (set-buffer-modified-p nil))
+          (kill-buffer new-temp-buffer))
+        (when (and old-temp-buffer (buffer-live-p old-temp-buffer))
+          (with-current-buffer old-temp-buffer
+            (set-buffer-modified-p nil))
+          (kill-buffer old-temp-buffer))))
+    (setq monet-diff-cleanup-tool #'my/monet-diff-cleanup-tool)
+
     (require 'eat)
     ;;(setq claude-code-terminal-backend 'vterm)
 
