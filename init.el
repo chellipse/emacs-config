@@ -76,8 +76,9 @@
 
 ;; Exec path for Nix
 (add-to-list 'exec-path "/run/current-system/sw/bin")
-(add-to-list 'exec-path "/Users/chelll/.nix-profile/bin")
+(add-to-list 'exec-path "~/.nix-profile/bin")
 (add-to-list 'exec-path "~/.cargo/bin")
+(add-to-list 'exec-path "~/.local/bin")
 
 (require 'use-package)
 (require 'org)
