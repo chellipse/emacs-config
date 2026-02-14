@@ -1313,6 +1313,7 @@
 ** =lsp-ui=
 #+begin_src emacs-lisp
   (use-package lsp-ui
+    :hook (lsp-mode . lsp-ui-mode)
     :commands (lsp-ui-doc-toggle lsp-ui-doc-glance)
     :custom
     (lsp-ui-doc-side 'right)
@@ -1326,7 +1327,7 @@
     (setq lsp-ui-doc-include-signature t)
     (setq lsp-ui-doc-max-width 150
           lsp-ui-doc-max-height 40)
-    (map! :n (evil-mode-map lsp-ui-mode-map)
+    (map! :n lsp-mode-map
           "g y" #'lsp-goto-type-definition
           "g i" #'lsp-goto-implementation
           "g d" #'evil-goto-definition
