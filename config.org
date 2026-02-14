@@ -811,7 +811,11 @@
                  "z z" #'writeroom-mode)
     (map-leader! :n '(global evil-mode-map) "f"
                  "f" #'consult-buffer
+                 "c" (cmd! (minibuffer-with-setup-hook
+                               (lambda () (insert "*claude: "))
+                             (consult-buffer)))
                  "l" #'consult-line
+                 "L" (cmd! (consult-line-multi t))
                  "g" #'consult-fd
                  "r" #'consult-ripgrep
                  "m" #'consult-imenu
@@ -825,6 +829,7 @@
     (map! :ni '(global evil-mode-map)
           "C-f" #'other-window
           "C-w n" #'transpose-frame
+          "C-w =" #'balance-windows-area
           "C-c s" #'claude-code-send-command-with-context
           "C-c f" #'claude-code-fix-error-at-point
           "C-c 1" #'claude-code-send-1
