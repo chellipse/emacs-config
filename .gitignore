@@ -13,3 +13,5 @@
 !snippets/**
 !themes
 !themes/**
+!ci-check-formatting.sh
+!check-formatting.el
