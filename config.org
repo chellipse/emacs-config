@@ -1634,6 +1634,7 @@
   (use-package claude-code
     :commands (claude-code
                claude-code-continue
+               claude-code-resume
                claude-code-send-command-with-context
                claude-code-send-region
                claude-code-switch-to-buffer)
