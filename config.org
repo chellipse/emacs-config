@@ -627,8 +627,9 @@
 #+end_src
 ** Frame Alpha
 #+begin_src emacs-lisp
+  (setq frame-alpha-param (if (eq system-type 'darwin) 'alpha 'alpha-background))
   (setq default-frame-alpha 100)
-  (add-to-list 'default-frame-alist `(alpha-background . ,default-frame-alpha))
+  (add-to-list 'default-frame-alist `(,frame-alpha-param . ,default-frame-alpha))
 #+end_src
 ** GUI Elements
 #+begin_src emacs-lisp
@@ -832,9 +833,9 @@
           "C-x x" #'revert-buffer-quick
           "9" (cmd! (scroll-up 18))
           "0" (cmd! (scroll-down 18))
-          "M-+" (cmd! (set-frame-parameter nil 'alpha-background default-frame-alpha))
-          "M-=" (cmd! (set-frame-parameter nil 'alpha-background (+ (frame-parameter nil 'alpha-background) 1)))
-          "M--" (cmd! (set-frame-parameter nil 'alpha-background (- (frame-parameter nil 'alpha-background) 1)))
+          "M-+" (cmd! (set-frame-parameter nil frame-alpha-param default-frame-alpha))
+          "M-=" (cmd! (set-frame-parameter nil frame-alpha-param (+ (frame-parameter nil frame-alpha-param) 1)))
+          "M--" (cmd! (set-frame-parameter nil frame-alpha-param (- (frame-parameter nil frame-alpha-param) 1)))
           "C-+" (cmd! (setq font-size default-font-size) (refresh-global-font-size))
           "C-=" #'increase-global-font-size
           "C--" #'decrease-global-font-size
