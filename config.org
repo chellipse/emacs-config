@@ -186,7 +186,7 @@
 ** Binds
 #+begin_src emacs-lisp
   (map! :n eww-mode-map
-          "H" #'eww-back-url)
+        "H" #'eww-back-url)
 #+end_src
 * UI
 ** Font
@@ -1097,8 +1097,8 @@
     :config
     ;; instead of disabling we just select exactly what we want
     (add-hook! (rust-mode-hook rust-ts-mode-hook)
-              (lambda ()
-                (setq-local flycheck-checker 'lsp)))
+               (lambda ()
+                 (setq-local flycheck-checker 'lsp)))
     (add-hook! (rust-mode-hook rust-ts-mode-hook) #'flycheck-mode))
 #+end_src
 ** =tree-sitter=
@@ -1214,7 +1214,7 @@
 
   ;; treat '_' as part of a word in python-mode, since python uses snake case
   (add-hook! (python-mode-hook python-ts-mode-hook)
-            (lambda () (modify-syntax-entry ?_ "w")))
+             (lambda () (modify-syntax-entry ?_ "w")))
 
   (after! (apheleia)
           (setf (alist-get 'python-ts-mode apheleia-mode-alist) 'ruff)
@@ -1338,16 +1338,17 @@
 ** =ansi-color=
 #+begin_src emacs-lisp
   (use-package ansi-color
-      :hook ((compilation-filter . ansi-color-compilation-filter)
-             (diff-mode . (lambda ()
-                            (let ((inhibit-read-only t))
-                              (ansi-color-apply-on-region (point-min) (point-max)))
-                            ;; Also apply after font-lock in case it runs later
-                            (add-hook 'font-lock-mode-hook
-                                      (lambda ()
-                                        (let ((inhibit-read-only t))
-                                          (ansi-color-apply-on-region (point-min) (point-max))))
-                                      nil t)))))
+    :hook ((compilation-filter . ansi-color-compilation-filter)
+           ;; TODO remove? think this is dead code since the other hook handles monet diff colors
+           (diff-mode . (lambda ()
+                          (let ((inhibit-read-only t))
+                            (ansi-color-apply-on-region (point-min) (point-max)))
+                          ;; Also apply after font-lock in case it runs later
+                          (add-hook 'font-lock-mode-hook
+                                    (lambda ()
+                                      (let ((inhibit-read-only t))
+                                        (ansi-color-apply-on-region (point-min) (point-max))))
+                                    nil t)))))
 #+end_src
 * Projects
 ** =projectile=
@@ -1380,7 +1381,7 @@
   (use-package envrc
     :config
     (map-leader! :n (envrc-mode-map) "SPC"
-                "b r" 'envrc-reload)
+                 "b r" 'envrc-reload)
     (envrc-global-mode))
 #+end_src
 * Tools
@@ -1455,8 +1456,8 @@
     :defer t
     ;; NOTE: the naive version with a normal hook gets broken on config reload
     :hook (buffer-list-update-hook . (lambda ()
-            (when (eq major-mode 'treemacs-mode)
-              (setq truncate-lines t))))
+                                       (when (eq major-mode 'treemacs-mode)
+                                         (setq truncate-lines t))))
     :config
     (progn
       (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
@@ -1596,38 +1597,38 @@
                               . "You are a large language model and a conversation partner. Respond concisely."))
           gptel-model 'mistral-nemo:latest
           gptel-backend (gptel-make-ollama "Ollama"
-                          :host "localhost:11434"
-                          :stream t
-                          :models
-                          '(qwen3:0.6b
-                            qwen3:1.7b
-                            qwen3:4b
-                            qwen3:8b
-                            qwen3:14b
-                            qwen2.5:14b
-                            mistral-nemo:latest
-                            mistral-small:22b
-                            mistral-small:22b-instruct-2409-q3_K_S
-                            mistral-small:22b-instruct-2409-q3_K_L
-                            mistral-small:22b-instruct-2409-q3_K_M
-                            (mistral-small3.1:latest . (
-                                                        :capabilities (media)
-                                                        :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
-                            (gemma3:4b . (
-                                          :capabilities (media)
-                                          :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
-                            (gemma3:12b . (
-                                           :capabilities (media)
-                                           :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
-                            deepseek-r1:1.5b
-                            deepseek-r1:14b
-                            phi4-mini:latest
-                            phi4:latest
-                            deepseek-r1:8b
-                            mistral:instruct
-                            mistral:text
-                            mistral:latest
-                            llama3.2:latest))))
+                                           :host "localhost:11434"
+                                           :stream t
+                                           :models
+                                           '(qwen3:0.6b
+                                             qwen3:1.7b
+                                             qwen3:4b
+                                             qwen3:8b
+                                             qwen3:14b
+                                             qwen2.5:14b
+                                             mistral-nemo:latest
+                                             mistral-small:22b
+                                             mistral-small:22b-instruct-2409-q3_K_S
+                                             mistral-small:22b-instruct-2409-q3_K_L
+                                             mistral-small:22b-instruct-2409-q3_K_M
+                                             (mistral-small3.1:latest . (
+                                                                         :capabilities (media)
+                                                                         :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
+                                             (gemma3:4b . (
+                                                           :capabilities (media)
+                                                           :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
+                                             (gemma3:12b . (
+                                                            :capabilities (media)
+                                                            :mime-types ("image/jpeg" "image/png" "image/gif" "image/webp" "application/pdf")))
+                                             deepseek-r1:1.5b
+                                             deepseek-r1:14b
+                                             phi4-mini:latest
+                                             phi4:latest
+                                             deepseek-r1:8b
+                                             mistral:instruct
+                                             mistral:text
+                                             mistral:latest
+                                             llama3.2:latest))))
 #+end_src
 ** =claude-code=
 #+begin_src emacs-lisp
