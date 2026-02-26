@@ -1636,6 +1636,7 @@
                claude-code-resume
                claude-code-send-command-with-context
                claude-code-send-region
+               claude-code-start-in-directory
                claude-code-switch-to-buffer)
     :init
     (defun my-claude-code ()
