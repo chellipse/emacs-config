@@ -35,6 +35,16 @@
           transient-levels-file (no-littering-expand-etc-file-name "transient/levels.el")
           transient-values-file (no-littering-expand-etc-file-name "transient/values.el")))
 #+end_src
+** Nix store paths for Claude
+#+begin_src emacs-lisp
+  (let ((nix-paths-file (expand-file-name "nix-store-paths.txt" user-emacs-directory)))
+    (with-temp-file nix-paths-file
+      (insert "# Nix store paths for Emacs packages\n")
+      (insert "# Generated at Emacs startup\n\n")
+      (dolist (path load-path)
+        (when (string-prefix-p "/nix/store" path)
+          (insert path "\n")))))
+#+end_src
 ** General macros
 #+begin_src emacs-lisp
   (defmacro load! (file)
