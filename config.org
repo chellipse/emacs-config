@@ -908,6 +908,8 @@
 
   (use-package vertico-prescient
     :after (prescient vertico)
+    :custom
+    (vertico-prescient-enable-filtering nil)
     :config
     (vertico-prescient-mode 1))
 #+end_src
