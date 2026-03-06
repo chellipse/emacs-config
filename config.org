@@ -193,6 +193,32 @@
     (ediff-buffers (current-buffer)
                    (read-buffer "Buffer to compare with: " nil t)))
 #+end_src
+
+** Journal File
+#+begin_src emacs-lisp
+  (defvar journal-file-path "~/journal.org"
+    "Path to the journal file.")
+
+  (defun new-journal-entry ()
+    "Open the journal file and start a new timestamped entry."
+    (interactive)
+    (find-file journal-file-path)
+    (goto-char (point-max))
+    ;; Trim trailing whitespace at end of buffer
+    (while (and (not (bobp)) (memq (char-before) '(?\n ?\s ?\t)))
+      (delete-char -1))
+    ;; Two blank lines to separate from previous content
+    (insert "\n* ")
+    ;; Date header
+    (insert (string-trim-right
+             (shell-command-to-string "date '+%F(%a) %H·%M%:::z'")))
+    (insert "\n")
+    ;; Mark where we want the cursor
+    (let ((entry-point (point)))
+      ;; Add 3 newlines for breathing room
+      (insert "\n\n\n")
+      (goto-char entry-point)))
+#+end_src
 ** Binds
 #+begin_src emacs-lisp
   (map! :n eww-mode-map
