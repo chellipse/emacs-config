@@ -1458,6 +1458,9 @@
   (use-package eat
     :commands eat
     :hook (eat-mode . (lambda ()
+                        ;; so programs won't use basic ansi base-7 coloring
+                        ;; such as: claude
+                        (setenv "COLORTERM" "truecolor")
                         (map! :ni 'local
                               "C-f" 'other-window
                               "C-y" 'eat-yank))))
