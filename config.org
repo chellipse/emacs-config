@@ -989,6 +989,7 @@
     :config
     (require 'consult-xref)
     (require 'consult-imenu)
+    (require 'consult-org)
     (setq imenu-max-item-length 120)
     (advice-add #'register-preview :override #'consult-register-window)
     (setq register-preview-delay 0.5)
