@@ -862,10 +862,11 @@
           "t" #'comment-line)
     (map! :v '(global evil-mode-map)
           "RET" (cmd! (claude-code-send-region '(4))))
+    (map! :n '(global evil-mode-map)
+          "C-w n" #'transpose-frame
+          "C-w =" #'balance-windows-area)
     (map! :ni '(global evil-mode-map)
           "C-f" #'other-window
-          "C-w n" #'transpose-frame
-          "C-w =" #'balance-windows-area
           "C-c s" #'claude-code-send-command-with-context
           "C-c f" #'claude-code-fix-error-at-point
           "C-c 1" #'claude-code-send-1
