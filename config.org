@@ -1290,6 +1290,10 @@
 #+begin_src emacs-lisp
   (add-to-list 'auto-mode-alist '("\\.go\\'" . go-ts-mode))
 #+end_src
+** =lua-ts-mode=
+#+begin_src emacs-lisp
+  (add-to-list 'auto-mode-alist '("\\.lua\\'" . lua-ts-mode))
+#+end_src
 ** =c/c++-ts-mode=
 #+begin_src emacs-lisp
   (add-to-list 'auto-mode-alist '("\\.cppz\\'" . c++-ts-mode))
