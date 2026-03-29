@@ -1447,6 +1447,10 @@
     (envrc-global-mode))
 #+end_src
 * Tools
+** GPG
+#+begin_src emacs-lisp
+  (setq epg-pinentry-mode 'loopback)
+#+end_src
 ** =tramp=
 #+begin_src emacs-lisp
   (require 'tramp)
