@@ -1447,6 +1447,94 @@
     (envrc-global-mode))
 #+end_src
 * Tools
+** =age=
+#+begin_src emacs-lisp
+  (use-package age
+    :config
+    (setq age-program "rage"
+          age-default-recipient nil
+          age-default-identity nil)
+
+    ;; age.el's passphrase caching is non-functional (the callback that would
+    ;; use it is dead code). Rage prompts via pinentry, bypassing Emacs. We fix
+    ;; this by: prompting in the minibuffer, caching per-file, and providing a
+    ;; custom pinentry wrapper that returns the cached passphrase via env var.
+
+    (defvar age--passphrase-cache (make-hash-table :test 'equal))
+
+    (defvar age--pinentry-dir
+      (let* ((real-pinentry (or (executable-find "pinentry-qt")
+                                (executable-find "pinentry-gnome3")
+                                (executable-find "pinentry-gtk-2")
+                                (executable-find "pinentry")))
+             (dir (make-temp-file "emacs-age-pinentry-" t))
+             (script (expand-file-name "pinentry" dir)))
+        (with-temp-file script
+          (insert
+           "#!/bin/sh\n"
+           "if [ -n \"$EMACS_AGE_PASSPHRASE\" ]; then\n"
+           "  echo 'OK'\n"
+           "  while IFS= read -r cmd; do\n"
+           "    case \"${cmd%% *}\" in\n"
+           "      GETPIN) printf 'D %s\\n' \"$EMACS_AGE_PASSPHRASE\"; echo 'OK' ;;\n"
+           "      BYE) echo 'OK'; exit 0 ;;\n"
+           "      *) echo 'OK' ;;\n"
+           "    esac\n"
+           "  done\n"
+           (if real-pinentry
+               (concat "else\n  exec " real-pinentry " \"$@\"\n")
+             "")
+           "fi\n"))
+        (set-file-modes script #o700)
+        (dolist (name '("pinentry-qt" "pinentry-gtk-2" "pinentry-gnome3"
+                        "pinentry-curses" "pinentry-tty"))
+          (make-symbolic-link "pinentry" (expand-file-name name dir) t))
+        dir))
+
+    (define-advice age--start (:around (orig-fn context args) use-cached-passphrase)
+      "Use cached passphrase via custom pinentry for age operations."
+      (if (not (or (age-context-passphrase context) (not age-default-recipient)))
+          (funcall orig-fn context args)
+        (let* ((file (expand-file-name (or buffer-file-name "")))
+               (cached (gethash file age--passphrase-cache))
+               (pass (or cached
+                         (let ((p (read-passwd
+                                   (format "Age passphrase for %s: "
+                                           (file-name-nondirectory file))
+                                   (eq (age-context-operation context) 'encrypt))))
+                           (puthash file (copy-sequence p) age--passphrase-cache)
+                           p)))
+               (process-environment
+                (append (list (concat "EMACS_AGE_PASSPHRASE=" pass)
+                              (concat "PATH=" age--pinentry-dir ":" (getenv "PATH")))
+                        process-environment)))
+          (funcall orig-fn context args))))
+
+    (define-advice age-decrypt-file (:around (orig-fn context cipher plain) clear-cache-on-error)
+      "Clear passphrase cache on decryption failure (e.g. wrong passphrase)."
+      (condition-case err
+          (funcall orig-fn context cipher plain)
+        (error
+         (remhash (expand-file-name (or buffer-file-name "")) age--passphrase-cache)
+         (signal (car err) (cdr err)))))
+
+    (define-advice age-encrypt-string (:around (orig-fn context plain recipients) refuse-empty)
+      "Refuse to return empty encrypted output — age.el can miss errors."
+      (let ((result (funcall orig-fn context plain recipients)))
+        (when (or (null result) (string-empty-p result))
+          (error "Age encryption produced empty output — refusing to write"))
+        result))
+
+    ;; Atomic saves: write to temp file then rename, so a crash mid-write
+    ;; can't truncate/destroy the existing encrypted file.
+    (add-hook 'find-file-hook
+              (lambda ()
+                (when (and buffer-file-name
+                           (string-match-p "\\.age\\'" buffer-file-name))
+                  (setq-local file-precious-flag t))))
+
+    (age-encryption-mode))
+#+end_src
 ** GPG
 #+begin_src emacs-lisp
   (setq epg-pinentry-mode 'loopback)
