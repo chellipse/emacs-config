@@ -1006,6 +1006,22 @@
 
     (setq consult-narrow-key "<")
 
+    ;; Don't hide TRAMP buffers from consult-buffer
+    (defvar consult--source-tramp-buffer
+      `(:name "Remote Buffer"
+              :narrow ?r
+              :category buffer
+              :face consult-buffer
+              :state ,#'consult--buffer-state
+              :items ,(lambda ()
+                        (consult--buffer-query :sort 'visibility
+                                               :as #'buffer-name
+                                               :predicate (lambda (buf)
+                                                            (buffer-local-value 'buffer-file-name buf)
+                                                            (file-remote-p (buffer-local-value 'default-directory buf))))))
+      "Remote/TRAMP buffer source for `consult-buffer'.")
+    (add-to-list 'consult-buffer-sources 'consult--source-tramp-buffer 'append)
+
     (after! (evil)
             ;; not sure why this was set here, it fucks up returning to project
             ;; buffer after lsp-goto-implementation and evil-goto-definition
@@ -1431,6 +1447,16 @@
     (envrc-global-mode))
 #+end_src
 * Tools
+** =tramp=
+#+begin_src emacs-lisp
+  (require 'tramp)
+  (add-to-list 'tramp-methods
+               '("distrobox"
+                 (tramp-login-program "distrobox")
+                 (tramp-login-args (("enter" "%h" "--" "%l")))
+                 (tramp-remote-shell "/usr/bin/env bash")
+                 (tramp-remote-shell-args ("-c"))))
+#+end_src
 ** =transpose-frame=
 #+begin_src emacs-lisp
   (use-package transpose-frame
