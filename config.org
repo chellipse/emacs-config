@@ -1161,6 +1161,12 @@
     :defer t
     :init
     (setq treesit-font-lock-level 4))
+
+  (use-package treesit-fold
+    :demand t
+    :after treesit
+    :config
+    (global-treesit-fold-mode 1))
 #+end_src
 ** =yasnippet=
 #+begin_src emacs-lisp
