@@ -1157,10 +1157,22 @@
 ** =tree-sitter=
 #+begin_src emacs-lisp
   ;; TODO: remove all references to non-ts-mode modes if everything goes to plan
+  ;; Workaround for Emacs bug#79687 (tree-sitter predicate name mismatch with
+  ;; libtree-sitter >= 0.26 / ABI 15). Upstream fix is on master, slated for
+  ;; Emacs 31; not backported to emacs-30. Drop this `load' once we're on 31+.
+  ;; :demand (not :defer) is required so the advice is installed before any
+  ;; *-ts-mode autoload triggers.
   (use-package treesit
-    :defer t
+    :demand t
     :init
-    (setq treesit-font-lock-level 4))
+    (setq treesit-font-lock-level 4)
+    :config
+    (if (>= emacs-major-version 31)
+        (message "Emacs %s includes the fix for bug#79687 -- time to remove the treesit-predicate-rewrite workaround"
+                 emacs-version)
+      (load (expand-file-name "lisp/treesit-predicate-rewrite.el"
+                              user-emacs-directory)
+            nil t)))
 
   (use-package treesit-fold
     :demand t
