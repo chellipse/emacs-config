@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: gnuplot-block
+# key: gnup
+# --
+#+BEGIN_SRC gnuplot :file (concat "/tmp/plot-" (format-time-string "%s-%N") ".png")
+plot $0
+#+END_SRC

@@ -1172,6 +1172,9 @@
 #+begin_src emacs-lisp
   (use-package yasnippet
     :demand t
+    :custom
+    ;; Override no-littering, which forces this to ~/.emacs.d/etc/yasnippet/snippets/
+    (yas-snippet-dirs (list (expand-file-name "snippets" user-emacs-directory)))
     :config
     (yas-global-mode 1))
 #+end_src
