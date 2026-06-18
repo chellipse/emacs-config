@@ -1431,8 +1431,17 @@
      '(".git" ".log" "build" "node_modules" ".direnv" "target"))
     :config
     (projectile-mode +1)
-    (add-to-list 'projectile-project-root-files "shell.nix")
-    (add-to-list 'projectile-project-root-files "flake.nix"))
+    ;; Newer projectile auto-seeds the *bottom-up* root list with each
+    ;; language's manifest (the `nix'/`nix-flake' types add default.nix and
+    ;; flake.nix). That makes a nix subdir inside a git repo (e.g.
+    ;; ~/nixos/echo) win over the enclosing ~/nixos/.git and show up as its
+    ;; own project. Pull the nix manifests out of the bottom-up list so only
+    ;; VCS markers drive bottom-up detection, but keep them as top-down
+    ;; markers so a *standalone* (non-git) nix dir is still a project.
+    (dolist (f '("default.nix" "flake.nix" "shell.nix"))
+      (setq projectile-project-root-files-bottom-up
+            (delete f projectile-project-root-files-bottom-up))
+      (add-to-list 'projectile-project-root-files f)))
 #+end_src
 ** =rg=
 #+begin_src emacs-lisp
