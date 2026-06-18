@@ -1928,7 +1928,7 @@
                          ("https://blog.janestreet.com/feed.xml" software trading)
                          ("https://blog.mattstuchlik.com/feed.xml" hpc)
                          ("https://lemire.me/blog/feed/" software hpc)
-                         ;; ("")
+                         ("https://fgiesen.wordpress.com/feed/" hardware)
 
                          ("https://thahxa.tumblr.com/rss" friend tumblr)
                          ("https://centrally-unplanned.tumblr.com/rss" tumblr)
