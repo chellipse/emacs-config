@@ -1254,7 +1254,7 @@
                          '(rust-ts-mode . ("rust-analyzer"))))
     (after! (apheleia)
             (setf (alist-get 'rust-ts-mode apheleia-mode-alist) 'rustfmt)
-            (setf (alist-get 'rustfmt apheleia-formatters) '("rustfmt" "--edition" "2021")))
+            (setf (alist-get 'rustfmt apheleia-formatters) '("rustfmt")))
 
     (setq rust-cargo-default-arguments "--color=always"))
 #+end_src
