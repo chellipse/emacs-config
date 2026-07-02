@@ -139,6 +139,16 @@ determine the exact padding."
    (doom-modeline-evil-operator-state :foreground teal)
    ;;;; elscreen
    (elscreen-tab-other-screen-face :background "#353a42" :foreground "#1e2022")
+
+   ;;;; gnus <built-in>
+   ;; Break the news-low/news-low-empty inheritance cycle: doom-themes has `-empty'
+   ;; inherit `-low' while built-in gnus inherits the other way, which trips Emacs
+   ;; 31's cycle guard during per-frame face recalc (e.g. corfu child frames).
+   ;; Remove once https://github.com/doomemacs/themes/issues/875 is fixed and we're
+   ;; on that doom-themes version.
+   (gnus-group-news-low       :inherit 'gnus-group-mail-1 :foreground base5)
+   (gnus-group-news-low-empty :foreground base5)
+
    ;;;; ivy
    (ivy-current-match :background base2 :distant-foreground nil)
    ;;;; markdown-mode
