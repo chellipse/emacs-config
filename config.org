@@ -1623,9 +1623,21 @@
                         ;; so programs won't use basic ansi base-7 coloring
                         ;; such as: claude
                         (setenv "COLORTERM" "truecolor")
+                        ;; no line-number gutter: it offsets/jitters the
+                        ;; terminal grid and misaligns TUI rendering (1/2 sure this works)
+                        (display-line-numbers-mode -1)
                         (map! :ni 'local
                               "C-f" 'other-window
-                              "C-y" 'eat-yank))))
+                              "C-y" 'eat-yank)))
+    :config
+    ;; NOTE: so claude-code buffers don't autoscroll to top constantly
+    ;; NOTE: this is actually because cc will cut-off old text after a point, which
+    ;; causes a rerender of the whole buffer for the terminal emulator, which resets
+    ;; our scroll position. this should be fixeable via using vterm (requires fixing
+    ;; a few rendering issues first) and then adding an advice wrapper which saves
+    ;; cursor pos and then resets the cursor pos to that after a delay, around w/e
+    ;; function runs the rerendering
+    (setq eat-term-scrollback-size (* 4 1024 1024)))
 #+end_src
 ** =ranger=
 #+begin_src emacs-lisp
