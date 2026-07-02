@@ -867,7 +867,8 @@
     (map! :v '(global evil-mode-map)
           "RET" (cmd! (claude-code-send-region '(4))))
     (map! :ni '(global evil-mode-map)
-          "C-f" #'other-window)
+          "C-f" #'other-window
+          "C-<escape>" #'claude-code-send-escape)
     (map! :n '(global evil-mode-map)
           "C-w n" #'transpose-frame
           "C-w =" #'balance-windows-area
