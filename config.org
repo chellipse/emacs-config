@@ -1608,6 +1608,182 @@
     (vterm-buffer-name-string "vterm: %s")
     :config
     (evil-set-initial-state 'vterm-mode 'insert)
+    ;; Everything below targets claude-code's fullscreen TUI; normal vterm
+    ;; buffers should behave like a plain terminal, so each tweak is gated on
+    ;; `my/claude-vterm-buffer-p'. claude-code names its buffer (via
+    ;; `get-buffer-create') *before* running `vterm-mode', so the name check is
+    ;; already valid inside `vterm-mode-hook' and in advices (which run in the
+    ;; term buffer's context).
+    (defun my/claude-vterm-buffer-p (&optional buffer)
+      "Non-nil if BUFFER (default current) is a claude-code vterm buffer."
+      (string-prefix-p "*claude" (or (buffer-name buffer) "")))
+    (defvar my/vterm-claude-timer-delay 0.016
+      "Buffer-local `vterm-timer-delay' for claude buffers.
+vterm throttles redisplay to at most once per `vterm-timer-delay' to survive
+heavy output bursts; the 0.1s default adds up to 100ms of latency per frame,
+very visible when scrolling a fullscreen TUI. 0.016 (~60Hz) keeps scroll
+snappy. Scoped to claude buffers so noisy normal shells keep the safer
+default.")
+    (defun my/vterm-claude-setup ()
+      "Per-buffer setup applied only to claude-code vterm buffers."
+      (when (my/claude-vterm-buffer-p)
+        ;; no line-number gutter: with relative numbers its rendered width
+        ;; drifts under vterm's fixed margin reservation
+        ;; (`vterm--get-margin-width'), offsetting the terminal grid and
+        ;; misaligning TUI rendering (e.g. claude's input box / borders)
+        (display-line-numbers-mode -1)
+        (setq-local vterm-timer-delay my/vterm-claude-timer-delay)
+        ;; Disable `pixel-scroll-precision-mode' in this buffer only. It's a
+        ;; global mode whose keymap lives in `minor-mode-map-alist' (checked
+        ;; before the major-mode map), so it can shadow our wheel forwarding.
+        ;; `minor-mode-map-alist' activates each map by the variable's
+        ;; buffer-local value, so nil-ing it locally deactivates its keymap
+        ;; here while leaving the global mode on everywhere else.
+        (setq-local pixel-scroll-precision-mode nil)))
+    (add-hook 'vterm-mode-hook #'my/vterm-claude-setup)
+    ;; Reserve a couple extra columns on top of vterm's own margin so the width
+    ;; reported to the child process is slightly under the real window width.
+    ;; vterm/Emacs disagree on the usable last column (cursor-wrap), which skews
+    ;; TUI rendering (e.g. claude-code's box borders). `vterm--get-margin-width'
+    ;; is subtracted from the reported width in BOTH the startup (vterm.el:774)
+    ;; and resize (vterm.el:1657) paths, so padding its return value shrinks the
+    ;; reported width everywhere.
+    (defvar my/vterm-width-shrink 2
+      "Extra columns to subtract from the width vterm reports to the pty.")
+    (defun my/vterm-width-shrink-advice (orig-fun &rest args)
+      "Reserve `my/vterm-width-shrink' extra columns, claude buffers only.
+Runs in the vterm buffer's context, so `my/claude-vterm-buffer-p' gates it."
+      (+ (apply orig-fun args)
+         (if (my/claude-vterm-buffer-p) my/vterm-width-shrink 0)))
+    (advice-add 'vterm--get-margin-width :around #'my/vterm-width-shrink-advice)
+    ;; Cap the terminal width for claude buffers, like the eat setup
+    ;; (`my/eat-max-width'). vterm sizes the pty in TWO places and BOTH must be
+    ;; clamped, else the cap leaks:
+    ;;   - `vterm--set-size' ioctls the pty directly (C), and runs *every* adjust
+    ;;     call regardless of the return value;
+    ;;   - `set-process-window-size' applies the adjust fn's return value.
+    ;; Capping only the return value (or only one sink) fails: claude-code's
+    ;; resize optimization returns nil on non-width changes, so Emacs skips its
+    ;; resize while `vterm--set-size' has already reset the pty to full width.
+    (defvar my/vterm-max-width 100
+      "Maximum terminal width (columns) for claude vterm buffers.")
+    (defun my/vterm--clamp-width-arg (args)
+      "Clamp the WIDTH arg (3rd) of a vterm size call in claude buffers.
+Used as :filter-args for `vterm--set-size' (runs in the term buffer)."
+      (when (and (numberp (nth 2 args)) (my/claude-vterm-buffer-p))
+        (setf (nth 2 args) (min my/vterm-max-width (nth 2 args))))
+      args)
+    (advice-add 'vterm--set-size :filter-args #'my/vterm--clamp-width-arg)
+    (defun my/vterm--clamp-process-width-arg (args)
+      "Clamp the WIDTH arg (3rd) of `set-process-window-size' for claude procs."
+      (let ((proc (car args)))
+        (when (and (processp proc)
+                   (buffer-live-p (process-buffer proc))
+                   (my/claude-vterm-buffer-p (process-buffer proc))
+                   (numberp (nth 2 args)))
+          (setf (nth 2 args) (min my/vterm-max-width (nth 2 args)))))
+      args)
+    (advice-add 'set-process-window-size
+                :filter-args #'my/vterm--clamp-process-width-arg)
+    ;; Forward the mouse wheel to the child process for claude-code buffers.
+    ;; vterm.el (this build) does no mouse reporting at all -- it only binds
+    ;; mouse-1 -- so the wheel hits Emacs' global `mwheel-scroll' and moves the
+    ;; window. In claude's fullscreen (alt-screen) mode only the visible screen
+    ;; is rendered, so scrolling the Emacs buffer shows nothing useful; claude
+    ;; itself must rerender. So in claude buffers we synthesize SGR mouse-wheel
+    ;; reports (button 64 = up, 65 = down; `ESC[<btn;col;rowM') and write them
+    ;; straight to the pty, bypassing libvterm's keyboard encoding. Non-claude
+    ;; vterm buffers keep normal Emacs scrolling.
+    ;; NOTE: this only works if claude-code has mouse tracking enabled; if the
+    ;; sequences show up as literal text in the input box instead, it isn't
+    ;; grabbing the mouse and a different scroll mechanism is needed.
+    ;; Each SGR report makes claude repaint the whole screen (and vterm
+    ;; re-render), so a fast spin floods it into a backlog and scrolling lags.
+    ;; Send ONE report per notch and coalesce queued same-direction notches
+    ;; into a single capped burst: a fast spin collapses to a few reports
+    ;; instead of dozens. claude's repaint rate is the hard ceiling.
+    (defvar my/vterm-mouse-scroll-ticks 3
+      "Wheel-tick reports to send the child per physical notch.
+NOTE: this is *ticks*, not lines -- claude decides how many lines one tick
+scrolls (it's more than one), so the on-screen distance is this times that.
+Tune to taste: bigger = farther per notch.")
+    (defvar my/vterm-mouse-scroll-max-notches 3
+      "How many queued same-direction notches to coalesce into one burst.
+This is the acceleration knob: a fast spin scrolls up to this many notches'
+worth at once. Set to 1 for a strict fixed `my/vterm-mouse-scroll-ticks'
+per notch (queued notches are then processed one-by-one instead).")
+    (defun my/vterm--coalesce-wheel (event)
+      "Return notch count for EVENT plus any queued same-direction wheel events.
+Non-matching pending events are pushed back onto `unread-command-events'."
+      (let ((this (event-basic-type event)) (n 1))
+        (while (and (< n my/vterm-mouse-scroll-max-notches)
+                    (input-pending-p)
+                    (let ((next (read-event)))
+                      (if (eq (event-basic-type next) this)
+                          (setq n (1+ n))
+                        (push next unread-command-events)
+                        nil))))
+        n))
+    ;; Stale glyphs after a scroll: cells that should now be blank keep their
+    ;; old character. On this pgtk+wlroots stack that's most likely a dropped
+    ;; repaint (same family as the corfu child-frame ghosting) -- vterm updated
+    ;; the buffer but the screen wasn't painted. `redraw-frame' forces a full
+    ;; top-level repaint, which clears it. It's expensive (full-frame, software
+    ;; repaint), so instead of paying it per notch we DEBOUNCE: each scroll
+    ;; resets a timer, and the redraw fires only once, shortly after scrolling
+    ;; stops. Minor mid-scroll artifacts are tolerated and cleaned up on pause.
+    ;; NOTE: if artifacts survive this, the staleness is in claude's own diff
+    ;; model (it thinks the cell is already blank -- usually a wide-char width
+    ;; disagreement), and no Emacs-side redraw can fix it; claude must repaint.
+    (defvar my/vterm-scroll-force-redraw t
+      "When non-nil, force a frame redraw after a claude vterm scroll settles.")
+    (defvar my/vterm-scroll-redraw-delay 0.05
+      "Debounce: seconds of scroll quiet before the cleanup redraw fires.")
+    (defvar my/vterm--scroll-redraw-timer nil
+      "Pending debounced post-scroll redraw timer, if any.")
+    (defun my/vterm--send-wheel (event button)
+      "Send SGR mouse-wheel BUTTON to the vterm child under EVENT, or scroll.
+Falls back to `mwheel-scroll' outside claude-code vterm buffers."
+      (let* ((pos (event-start event))
+             (win (posn-window pos))
+             (buf (and (windowp win) (window-buffer win))))
+        (if (and buf (my/claude-vterm-buffer-p buf)
+                 (buffer-local-value 'vterm--process buf))
+            (let* ((cr  (posn-col-row pos))
+                   (col (1+ (car cr)))
+                   (row (1+ (cdr cr)))
+                   (seq (format "\e[<%d;%d;%dM" button col row))
+                   (proc (buffer-local-value 'vterm--process buf))
+                   (notches (my/vterm--coalesce-wheel event))
+                   (count (* notches my/vterm-mouse-scroll-ticks)))
+              ;; One batched write so claude reads all reports in a single
+              ;; chunk and repaints once, not once per line.
+              (process-send-string proc (apply #'concat (make-list count seq)))
+              (when (and my/vterm-scroll-force-redraw (window-live-p win))
+                (my/vterm--schedule-redraw (window-frame win))))
+          (mwheel-scroll event))))
+    (defun my/vterm--schedule-redraw (frame)
+      "(Re)arm the debounced cleanup redraw for FRAME."
+      (when (timerp my/vterm--scroll-redraw-timer)
+        (cancel-timer my/vterm--scroll-redraw-timer))
+      (setq my/vterm--scroll-redraw-timer
+            (run-at-time my/vterm-scroll-redraw-delay nil
+                         #'my/vterm--redraw-frame frame)))
+    (defun my/vterm--redraw-frame (frame)
+      "Force a full repaint of FRAME if it is still live."
+      (setq my/vterm--scroll-redraw-timer nil)
+      (when (frame-live-p frame)
+        (redraw-frame frame)))
+    (defun my/vterm-wheel-up (event)
+      "Forward a wheel-up to the claude-code child, else scroll."
+      (interactive "e")
+      (my/vterm--send-wheel event 64))
+    (defun my/vterm-wheel-down (event)
+      "Forward a wheel-down to the claude-code child, else scroll."
+      (interactive "e")
+      (my/vterm--send-wheel event 65))
+    (define-key vterm-mode-map [wheel-up]   #'my/vterm-wheel-up)
+    (define-key vterm-mode-map [wheel-down] #'my/vterm-wheel-down)
     (map-after! (evil-collection) :n vterm-mode-map
                 "C-d" 'vterm--self-insert
                 ;; NOTE: evil-collection binds C-c C-z to evil-collection-vterm-toggle-send-escape
@@ -1899,7 +2075,7 @@
     (setq monet-diff-cleanup-tool #'my/monet-diff-cleanup-tool)
 
     (require 'eat)
-    ;;(setq claude-code-terminal-backend 'vterm)
+    (setq claude-code-terminal-backend 'vterm)
 
     (defun my-claude-display-right (buffer)
       "Display Claude buffer in right window."
