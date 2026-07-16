@@ -1072,6 +1072,26 @@
     (global-corfu-mode)
     (require 'corfu-popupinfo)
     (corfu-popupinfo-mode 1)
+
+    ;; PGTK + wlroots (sway) won't unmap GTK child-frame surfaces on
+    ;; `make-frame-invisible': the popup stays painted even though
+    ;; `frame-visible-p' reports nil, and `(redisplay t)' can't force the
+    ;; unmap. The only reliable fix on wlroots is to DESTROY the surface, so
+    ;; we delete the child frame on hide and clear corfu's cached frame
+    ;; (`corfu--make-frame' transparently recreates a dead frame). The frame
+    ;; is still reused *during* a completion session — corfu only hides when
+    ;; the session ends — so this is one frame creation per popup, not per
+    ;; keystroke.
+    (defun my/corfu-hide-frame-by-deleting (frame)
+      "Delete child FRAME instead of hiding it, to defeat wlroots ghosting."
+      (when (frame-live-p frame)
+        (ignore-errors (delete-frame frame)))
+      (when (eq frame corfu--frame) (setq corfu--frame nil))
+      (when (and (boundp 'corfu-popupinfo--frame)
+                 (eq frame corfu-popupinfo--frame))
+        (setq corfu-popupinfo--frame nil)))
+    (advice-add 'corfu--hide-frame :override #'my/corfu-hide-frame-by-deleting)
+
     (setq corfu-auto      t
           corfu-auto-delay  0.5
           corfu-auto-prefix 2
