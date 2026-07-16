@@ -1167,6 +1167,7 @@
                 c++-ts-mode-hook
                 python-mode-hook
                 python-ts-mode-hook
+                haskell-ts-mode-hook
                 emacs-lisp-mode-hook) #'apheleia-mode))
 #+end_src
 ** =flycheck=
@@ -1379,6 +1380,21 @@
   (use-package bash-ts-mode
     :mode "\\.sh\\'")
 #+end_src
+** =haskell-ts-mode=
+#+begin_src emacs-lisp
+  ;; grammar comes from treesit-grammars.with-all-grammars; the mode package
+  ;; needs haskell-ts-mode in emacs.nix -- gated so a build without it still loads
+  ;; (same package doom's :lang haskell +tree-sitter uses)
+  (use-package haskell-ts-mode
+    :if (locate-library "haskell-ts-mode")
+    :mode "\\.hs\\'"
+    :config
+    ;; GHC interface files, like doom does
+    (add-to-list 'completion-ignored-extensions ".hi"))
+  ;; LSP: lsp-haskell (in emacs.nix) registers haskell-ts-mode and is
+  ;; auto-required via `lsp-client-packages'; the hls binary itself comes
+  ;; from `ghcup install hls'. hook lives in the lsp-mode block below
+#+end_src
 * LSP
 ** =lsp-mode=
 #+begin_src emacs-lisp
@@ -1396,6 +1412,7 @@
                 rust-mode-hook
                 rust-ts-mode-hook
                 ruby-ts-mode-hook
+                haskell-ts-mode-hook
                 fish-mode-hook
                 c-mode-hook
                 c-ts-mode-hook
