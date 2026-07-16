@@ -2160,28 +2160,37 @@ Falls back to `mwheel-scroll' outside claude-code vterm buffers."
           "<up>" 'elfeed-show-prev
           "<down>" 'elfeed-show-next)
     (setq elfeed-search-filter "@2-week-ago"
-          ;; elfeed-show-entry-switch #'pop-to-buffer
+          elfeed-show-entry-switch #'pop-to-buffer
           elfeed-feeds '(
-                         ("https://loginasroot.net/rss.xml" friend)
-                         ("https://alicemaz.substack.com/feed" friend software)
-                         ("https://faroffunhappythings.com/?feed=rss2" FOUT)
-                         ("https://www.kenklippenstein.com/feed" journalism)
-                         ("https://xkcd.com/atom.xml" comic)
-                         ("https://fasterthanli.me/index.xml" rust)
-                         ("https://lwn.net/headlines/rss" linux oss)
-                         ("https://cafkafk.dev/index.xml" software)
-                         ("https://www.lineageos.org/feed-engineering.xml" android)
-                         ("https://research.google/blog/rss/" google)
-                         ("https://deepmind.google/blog/rss.xml" google ml)
-                         ("https://terrytao.wordpress.com/feed/" math)
-                         ("https://karthinks.com/software/index.xml" emacs)
-                         ("https://parakeet.substack.com/feed" tpot)
-                         ("https://blog.janestreet.com/feed.xml" software trading)
-                         ("https://blog.mattstuchlik.com/feed.xml" hpc)
-                         ("https://lemire.me/blog/feed/" software hpc)
-                         ("https://fgiesen.wordpress.com/feed/" hardware)
+                         ("https://loginasroot.net/rss.xml" blog)
+                         ("https://alicemaz.substack.com/feed" blog)
+                         ("https://fasterthanli.me/index.xml" blog)
+                         ("https://point.free/rss.xml" blog)
+                         ("https://terrytao.wordpress.com/feed/" blog)
+                         ("https://karthinks.com/software/index.xml" blog)
+                         ("https://parakeet.substack.com/feed" blog)
+                         ("https://blog.mattstuchlik.com/feed.xml" blog)
+                         ("https://lemire.me/blog/feed/" blog)
+                         ("https://fgiesen.wordpress.com/feed/" blog)
+                         ("https://inteltechniques.com/blog/feed/" blog)
+                         ("https://eli.thegreenplace.net/feeds/all.atom.xml" blog)
+                         ("https://tratt.net/laurie/blog/blog.rss" blog)
+                         ("https://apfitzge.github.io/index.xml#feed" blog)
+                         ("https://danluu.com/atom.xml" blog)
+                         ("https://www.kalzumeus.com/feed/articles/" blog) ;; patio11
 
-                         ("https://thahxa.tumblr.com/rss" friend tumblr)
+                         ("https://faroffunhappythings.com/?feed=rss2" fiction)
+                         ("https://xkcd.com/atom.xml" fiction)
+
+                         ("https://www.kenklippenstein.com/feed" journalism)
+                         ("https://lwn.net/headlines/rss" journalism tech)
+
+                         ("https://research.google/blog/rss/" company)
+                         ("https://deepmind.google/blog/rss.xml" company)
+                         ("https://blog.janestreet.com/feed.xml" company)
+                         ("https://www.helius.dev/blog/rss.xml" blog)
+
+                         ("https://thahxa.tumblr.com/rss" tumblr)
                          ("https://centrally-unplanned.tumblr.com/rss" tumblr)
                          ("https://vren-diagram.tumblr.com/rss" tumblr)
                          ("https://phaeton-flier.tumblr.com/rss" tumblr)
@@ -2189,16 +2198,14 @@ Falls back to `mwheel-scroll' outside claude-code vterm buffers."
                          ("https://wildgifthorses.tumblr.com/rss" tumblr)
                          ("https://autogeneity.tumblr.com/rss" tumblr)
 
-                         ("https://www.helius.dev/blog/rss.xml" solana)
-                         ("https://apfitzge.github.io/index.xml#feed" solana)
 
-                         ("https://danluu.com/atom.xml" programming industry)
-                         ("https://www.kalzumeus.com/feed/articles/" finance industry)
-                         ("https://www.thediff.co/archive/rss/" finance)
-                         ("https://rss.beehiiv.com/feeds/JyXsSUwlAE.xml" finance)
-                         ("https://www.bloomberg.com/authors/ARbTQlRLRjE/matthew-s-levine.rss" finance)
-                         ("https://www.bitsaboutmoney.com/archive/rss/" finance industry)
-                         ("https://feeds.transistor.fm/complex-systems-with-patrick-mckenzie-patio11" finance industry)
+                         ("https://www.thediff.co/archive/rss/" newsletter)
+                         ("https://rss.beehiiv.com/feeds/JyXsSUwlAE.xml" newsletter)
+                         ("https://www.bloomberg.com/authors/ARbTQlRLRjE/matthew-s-levine.rss" newsletter)
+                         ("https://www.bitsaboutmoney.com/archive/rss/" newsletter) ;; patio11
+
+                         ("https://feeds.transistor.fm/complex-systems-with-patrick-mckenzie-patio11" podcast)
+
                          ;; ("")
                          )))
 #+end_src
