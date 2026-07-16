@@ -181,7 +181,7 @@
   (defun copy-file-path ()
     "Copy the current buffer's file path to the clipboard."
     (interactive)
-    (if-let ((path (buffer-file-name)))
+    (if-let* ((path (buffer-file-name)))
         (progn
           (kill-new path)
           (message "Copied: %s" path))
@@ -2070,7 +2070,7 @@ Falls back to `mwheel-scroll' outside claude-code vterm buffers."
       (require 'claude-code)
       (let* ((project-root (or (when (fboundp 'projectile-project-root)
                                  (projectile-project-root))
-                               (when-let ((proj (project-current)))
+                               (when-let* ((proj (project-current)))
                                  (project-root proj))
                                default-directory))
              (buffer-name (format "*claude:%s:default*"
