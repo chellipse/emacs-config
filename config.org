@@ -986,6 +986,7 @@
                consult-ripgrep
                consult-imenu
                consult-org-heading
+               consult-theme
                consult-recent-file)
     :init
     (defvar dynamic-diagnostic-fn #'consult-flymake
