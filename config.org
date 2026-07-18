@@ -219,6 +219,16 @@
       (insert "\n\n\n")
       (goto-char entry-point)))
 #+end_src
+** Journal Refill
+#+begin_src emacs-lisp
+  ;; Live-reflow paragraphs in the journal file via built-in `refill-mode'.
+  (defun journal-refill--maybe-enable ()
+    "Enable `refill-mode' only in the journal file."
+    (when (and buffer-file-name
+               (ignore-errors (file-equal-p buffer-file-name journal-file-path)))
+      (refill-mode 1)))
+  (add-hook 'org-mode-hook #'journal-refill--maybe-enable)
+#+end_src
 ** Binds
 #+begin_src emacs-lisp
   (map! :n eww-mode-map
