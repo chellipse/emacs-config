@@ -818,6 +818,21 @@
           evil-want-C-i-jump t)
     :config
     (evil-mode 1)
+    (defun my/window-swap-in-direction (dir)
+      "Swap the current window's buffer with the neighbor in DIR, and
+    follow the buffer so it looks like the window shifted one slot over.
+    Unlike `C-w H/L' this preserves the split sizes and structure."
+      (let ((other (window-in-direction dir)))
+        (if (not other)
+            (user-error "No window to the %s" dir)
+          (window-swap-states (selected-window) other)
+          (select-window other))))
+    (defun my/window-move-left ()
+      "Shift the current window one slot to the left."
+      (interactive) (my/window-swap-in-direction 'left))
+    (defun my/window-move-right ()
+      "Shift the current window one slot to the right."
+      (interactive) (my/window-swap-in-direction 'right))
     (map-leader! :n '(global evil-mode-map) "SPC"
                  ";" #'eval-expression
                  ":" #'eval-last-sexp
@@ -883,6 +898,8 @@
           "C-w n" #'transpose-frame
           "C-w =" #'balance-windows-area
           "C-c s" #'claude-code-send-command-with-context
+          "C-w H" #'my/window-move-left
+          "C-w L" #'my/window-move-right
           "C-c f" #'claude-code-fix-error-at-point
           "C-c 1" #'claude-code-send-1
           "C-c 2" #'claude-code-send-2
