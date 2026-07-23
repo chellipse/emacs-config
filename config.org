@@ -846,6 +846,8 @@
                  "o e" '("Open Eshell!" . eshell)
                  "o g" #'gptel
                  "o c" '("⁺˚⋆ CLAUDE ⁺˚⋆" . my-claude-code)
+                 "o a" '("Agent shell (ACP)" . agent-shell-anthropic-start-claude-code)
+                 "o A" '("Agent shell in dir…" . my/agent-shell-in-directory)
                  "o r" '("Open Ranger!" . ranger)
                  "o m" '("Open a MAGIT!" . magit)
                  "o t" '("Open Treemacs!" . treemacs)
@@ -867,8 +869,13 @@
                  "z z" #'writeroom-mode)
     (map-leader! :n '(global evil-mode-map) "f"
                  "f" #'consult-buffer
+                 ;; Match claude-code buffers (*claude:...) OR agent-shell
+                 ;; "Claude Agent @ dir" buffers, via orderless-regexp. The
+                 ;; uppercase in "Claude" makes it case-sensitive (smart-case),
+                 ;; so lowercase acp-client-stderr(claude-agent-acp) buffers
+                 ;; are excluded. The `.' matches the space (avoids splitting).
                  "c" (cmd! (minibuffer-with-setup-hook
-                               (lambda () (insert "*claude: "))
+                               (lambda () (insert "\\*claude:\\|Claude.Agent "))
                              (consult-buffer)))
                  "l" #'consult-line
                  "L" (cmd! (consult-line-multi t))
@@ -888,9 +895,9 @@
     (map! :n '(global evil-mode-map)
           "C-w n" #'transpose-frame
           "C-w =" #'balance-windows-area
-          "C-c s" #'claude-code-send-command-with-context
           "C-w H" #'my/window-move-left
           "C-w L" #'my/window-move-right
+          "C-c s" #'my/agent-shell-send-command-with-context
           "C-c f" #'claude-code-fix-error-at-point
           "C-c 1" #'claude-code-send-1
           "C-c 2" #'claude-code-send-2
@@ -2229,6 +2236,106 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
                                "-sound" "default")))))
 
     (claude-code-mode))
+#+end_src
+** =agent-shell=
+#+begin_src emacs-lisp
+  ;; Agents in Emacs over ACP (Agent Client Protocol). `acp' and `shell-maker'
+  ;; come in as deps via emacs.nix; the `claude-agent-acp' bridge binary is
+  ;; provided by the `claude-agent-acp' nixpkgs package (in emacs.nix's
+  ;; systemPackages, so it's on the daemon's PATH). The bridge wraps Claude
+  ;; Code, so it reuses your existing `claude' login -- no API key needed as
+  ;; long as the subprocess inherits the environment (see below).
+  (use-package agent-shell
+    :commands (agent-shell
+               agent-shell-anthropic-start-claude-code
+               my/agent-shell-in-directory
+               my/agent-shell-send-command-with-context)
+    :init
+    (defvar my/agent-shell-command-history nil
+      "Minibuffer history for `my/agent-shell-send-command-with-context'.")
+
+    (defun my/agent-shell-send-command-with-context (&optional arg)
+      "Read a command and send it to the current project's agent-shell, tagged
+    with a `file:line' reference for context (like claude-code's
+    `send-command-with-context'). Uses the active region's line range if set,
+    else the current line. With prefix ARG, focus the shell after sending."
+      (interactive "P")
+      (require 'agent-shell)
+      (let* ((shell-buffer (agent-shell--shell-buffer))
+             (file (buffer-file-name))
+             (cwd (and shell-buffer
+                       (with-current-buffer shell-buffer (agent-shell-cwd))))
+             ;; built before the minibuffer read, so the region is still active
+             (ref (when file
+                    (let ((path (if (and cwd (file-in-directory-p file cwd))
+                                    (file-relative-name file cwd)
+                                  file)))
+                      (if (use-region-p)
+                          (format "%s:%d-%d" path
+                                  (line-number-at-pos (region-beginning) t)
+                                  (line-number-at-pos (region-end) t))
+                        (format "%s:%d" path (line-number-at-pos (point) t))))))
+             (cmd (read-string "Agent command: " nil 'my/agent-shell-command-history))
+             (text (if ref (format "%s\n\n%s" cmd ref) cmd))
+             (busy (with-current-buffer shell-buffer
+                     (ignore-errors (shell-maker-busy)))))
+        ;; submit only if idle; if busy, leave it in the input to send with RET
+        (agent-shell-insert :text text :submit (not busy)
+                            :shell-buffer shell-buffer :no-focus (not arg))
+        (when busy
+          (message "Agent busy -- left in input, submit (RET) when ready"))))
+
+    (defun my/agent-shell-in-directory (dir)
+      "Start a new agent shell rooted at DIR (resolved to its project root).
+    Like `claude-code-start-in-directory' -- lets you launch an agent in a
+    repo you don't currently have a buffer open in. `agent-shell-cwd'
+    resolves the project root from `default-directory', so pointing at any
+    path inside the repo lands the shell at the repo root."
+      (interactive "DAgent shell in directory: ")
+      (require 'agent-shell)
+      (let ((default-directory (file-name-as-directory (expand-file-name dir))))
+        (agent-shell-new-shell)))
+    :config
+    (require 'acp)
+    ;; Default to the Claude Code agent when running `M-x agent-shell'.
+    (setq agent-shell-preferred-agent-config
+          (agent-shell-anthropic-make-claude-code-config))
+
+    ;; After interrupting, the shell only becomes editable again when the turn
+    ;; finalizes (`shell-maker-finish-output'), which agent-shell waits for the
+    ;; agent's cancel-ack to trigger. If the bridge never sends it, the buffer
+    ;; stays read-only and you can't continue -- run this to unstick it.
+    (defun my/agent-shell-finish ()
+      "Force-finalize a stuck agent-shell turn, re-enabling the input.
+    Use after interrupting when the buffer is left read-only with no fresh prompt."
+      (interactive)
+      (unless (derived-mode-p 'agent-shell-mode)
+        (user-error "Not in an agent-shell buffer"))
+      (shell-maker-finish-output :config shell-maker--config :success t))
+    ;; Inherit the shell environment so the bridge sees PATH + your Claude
+    ;; login. To use a raw API key instead, set:
+    ;;   (setq agent-shell-anthropic-authentication
+    ;;         (agent-shell-anthropic-make-authentication
+    ;;          :api-key (lambda () (getenv "ANTHROPIC_API_KEY"))))
+    (setq agent-shell-anthropic-claude-environment
+          (agent-shell-make-environment-variables :inherit-env t))
+    ;; Ergonomic `I' (like vterm): jump to the bottom / end of the prompt
+    ;; line, then enter insert state -- ready to type a new prompt.
+    (map! :n agent-shell-mode-map
+          "I" (cmd! (goto-char (point-max)) (evil-insert 1)))
+    ;; After submitting, scroll the submit point to the top of the window so
+    ;; the streamed reply appears from the top (visible from its first char)
+    ;; instead of off-screen below the prompt. shell-maker's auto-scroll then
+    ;; follows the tail (via `scroll-conservatively') once it fills a screen.
+    (defun my/agent-shell-scroll-prompt-to-top (&rest _)
+      "Recenter the submit point to the window top, in agent-shell buffers."
+      (when (derived-mode-p 'agent-shell-mode)
+        (when-let* ((win (get-buffer-window (current-buffer) t)))
+          (with-selected-window win
+            (goto-char (point-max))
+            ;; keep ~5 lines above visible so the sent message stays on screen
+            (recenter 5)))))
+    (advice-add 'shell-maker-submit :after #'my/agent-shell-scroll-prompt-to-top))
 #+end_src
 ** =elfeed=
 #+begin_src emacs-lisp
