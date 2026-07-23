@@ -632,10 +632,26 @@
        (unless (member new-rule display-buffer-alist)
          (add-to-list 'display-buffer-alist new-rule))))
 
+  (defun display-buffer-in-rightmost-other-window (buffer alist)
+    "Display BUFFER in the rightmost window that isn't the selected one."
+    (let ((window (car (seq-sort-by (lambda (w) (nth 0 (window-edges w)))
+                                    #'>
+                                    (seq-remove (lambda (w) (eq w (selected-window)))
+                                                (window-list nil 'no-minibuf))))))
+      (when window
+        (window--display-buffer buffer window 'reuse alist))))
+
   (add-display-rule! "\\*Help\\*"
                      display-buffer-reuse-window display-buffer-in-alt-frame)
   (add-display-rule! "\\*compilation\\*"
+                     display-buffer-reuse-window display-buffer-in-alt-frame
+                     display-buffer-in-rightmost-other-window)
+  ;; claude-code changes arrive as monet's "*Diff: file*" diff-mode buffers
+  (add-display-rule! "\\`\\*Diff: "
                      display-buffer-reuse-window display-buffer-in-alt-frame)
+  (add-display-rule! (derived-mode . magit-mode)
+                     display-buffer-reuse-window display-buffer-in-alt-frame
+                     display-buffer-in-rightmost-other-window)
 
 
   ;; Enable
