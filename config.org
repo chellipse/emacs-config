@@ -591,6 +591,11 @@
   ;; (global-visual-line-mode 1)
   (blink-cursor-mode -1)
 
+  ;; Auto-revert buffers when files change on disk (e.g. agent edits). Uses
+  ;; file notifications (not polling) and never touches modified buffers.
+  (setq auto-revert-verbose nil)   ; no "Reverting buffer..." spam
+  (global-auto-revert-mode 1)
+
   (setq frame-resize-pixelwise t
         window-resize-pixelwise t)
 #+end_src
