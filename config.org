@@ -817,7 +817,10 @@
           evil-want-C-u-scroll t
           evil-want-C-i-jump t)
     :config
-    (evil-mode 1)
+    ;; Only enable once. Re-running `evil-mode' on config reload re-initializes
+    ;; every buffer to its *initial* evil state -- e.g. comint-derived buffers
+    ;; (agent-shell) snap back to insert. Guarding it preserves live states.
+    (unless (bound-and-true-p evil-mode) (evil-mode 1))
     (defun my/window-swap-in-direction (dir)
       "Swap the current window's buffer with the neighbor in DIR, and
     follow the buffer so it looks like the window shifted one slot over.
