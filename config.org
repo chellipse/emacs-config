@@ -221,12 +221,70 @@
 #+end_src
 ** Journal Refill
 #+begin_src emacs-lisp
-  ;; Live-reflow paragraphs in the journal file via built-in `refill-mode'.
+  ;; Live-reflow the *current* org paragraph as you edit -- an org-aware
+  ;; alternative to built-in `refill-mode', which only reliably refills the
+  ;; paragraph you're appending to (its overlay/tail optimisation and
+  ;; space-gated triggering break when you go back to edit an earlier one).
+  ;; This just runs `org-fill-paragraph' on whatever paragraph point is in,
+  ;; after every editing command.
+  (defvar-local journal-refill--doit nil
+    "Set by after-change; consumed by post-command to trigger a refill.")
+  (defvar-local journal-refill--filling nil
+    "Non-nil while we are the ones filling, to avoid re-triggering.")
+
+  (defun journal-refill--safe-p ()
+    "Non-nil when point sits in an ordinary paragraph safe to auto-fill."
+    (and (not (org-at-table-p))
+         (not (org-at-heading-p))
+         (not (org-in-src-block-p))
+         (not (org-at-comment-p))
+         (not (org-at-keyword-p))
+         (not (org-at-block-p))
+         ;; Don't fill while point follows whitespace -- otherwise the space
+         ;; you just typed to end a word gets collapsed and you can't start
+         ;; the next word. Filling resumes on the next real character.
+         (not (memq (char-before) '(?\s ?\t)))
+         (memq (org-element-type (org-element-at-point))
+               '(paragraph item plain-list))))
+
+  (defun journal-refill--post-command ()
+    "Reflow the paragraph at point if an edit just happened and it's safe."
+    (when (and journal-refill--doit (not journal-refill--filling))
+      (setq journal-refill--doit nil)
+      (ignore-errors
+        (when (and journal-refill-mode
+                   (not buffer-read-only)
+                   (not (region-active-p))
+                   (derived-mode-p 'org-mode)
+                   (journal-refill--safe-p))
+          (let ((journal-refill--filling t))
+            (save-excursion (org-fill-paragraph)))))))
+
+  (defun journal-refill--after-change (&rest _)
+    "Flag that a real edit happened (skipping our own fills and undo)."
+    (unless (or journal-refill--filling
+                (memq this-command '(undo undo-redo undo-tree-undo
+                                          undo-tree-redo evil-undo evil-redo)))
+      (setq journal-refill--doit t)))
+
+  (define-minor-mode journal-refill-mode
+    "Continuously reflow the current org paragraph as you edit, like a live `gqap'.
+  Uses `org-fill-paragraph', and skips tables, source blocks, headings,
+  keywords, and other structured elements."
+    :lighter " ↩fill"
+    (if journal-refill-mode
+        (progn
+          (add-hook 'after-change-functions #'journal-refill--after-change nil t)
+          (add-hook 'post-command-hook #'journal-refill--post-command nil t))
+      (remove-hook 'after-change-functions #'journal-refill--after-change t)
+      (remove-hook 'post-command-hook #'journal-refill--post-command t)
+      (setq journal-refill--doit nil)))
+
   (defun journal-refill--maybe-enable ()
-    "Enable `refill-mode' only in the journal file."
+    "Enable `journal-refill-mode' only in the journal file."
     (when (and buffer-file-name
                (ignore-errors (file-equal-p buffer-file-name journal-file-path)))
-      (refill-mode 1)))
+      (journal-refill-mode 1)))
   (add-hook 'org-mode-hook #'journal-refill--maybe-enable)
 #+end_src
 ** Binds
