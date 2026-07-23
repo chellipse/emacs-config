@@ -1444,7 +1444,12 @@
           lsp-lens-enable nil
           ;; NOTE: rust-analyzer's textDocument/documentSymbol outputs aren't to my taste
           lsp-enable-imenu nil
-          lsp-auto-configure t))
+          lsp-auto-configure t
+          lsp-enable-file-watchers nil
+          lsp-log-io nil
+          lsp-idle-delay 0.75
+          lsp-enable-folding nil
+          lsp-enable-text-document-color nil))
 #+end_src
 ** =lsp-ui=
 #+begin_src emacs-lisp
