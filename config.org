@@ -669,6 +669,12 @@
   (tool-bar-mode -1)
   (tooltip-mode -1)
   (setq inhibit-startup-message t)
+  ;; Open *scratch* in Org mode.
+  (setq initial-major-mode 'org-mode)
+  ;; The startup *scratch* is created before init, so switch it over too.
+  (when-let* ((buf (get-buffer "*scratch*")))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'org-mode) (org-mode))))
 #+end_src
 ** Line Numbers
 #+begin_src emacs-lisp
