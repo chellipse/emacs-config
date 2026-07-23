@@ -2303,6 +2303,8 @@ Falls back to `mwheel-scroll' outside claude-code vterm buffers."
 
   (add-hook 'org-mode-hook (lambda () (setq-local fill-column 80)))
   (add-hook 'org-mode-hook #'org-indent-mode)
+  ;; Wrap long lines in org buffers (global default is truncate-lines t).
+  (add-hook 'org-mode-hook (lambda () (setq-local truncate-lines nil)))
   (unless (file-exists-p "~/Sync/org")
     (make-directory "~/Sync/org" t))
   (setq org-blank-before-new-entry
