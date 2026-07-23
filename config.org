@@ -1640,6 +1640,16 @@
 #+begin_src emacs-lisp
   (use-package magit
     :commands magit
+    :custom
+    ;; syntax-highlight hunks with the file's own major mode (magit 4.6+).
+    ;; 'all fontifies every hunk immediately (synchronous); set to t to only
+    ;; fontify the hunk under point if large diffs get laggy.
+    (magit-diff-fontify-hunk 'all)
+    ;; must be nil before magit-diff loads, else hunk faces hardcode grey
+    ;; foregrounds that fight the syntax colors
+    (magit-diff-specify-hunk-foreground nil)
+    ;; give the +/- column its own face instead of coloring the whole line
+    (magit-diff-use-indicator-faces t)
     :config
     (require 'transient)
     (general-def
