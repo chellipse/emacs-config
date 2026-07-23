@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: attribution-block
+# key: attribution
+# --
+#+begin_attribution
+$1
+#+end_attribution
