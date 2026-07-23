@@ -1822,6 +1822,56 @@ Falls back to `mwheel-scroll' outside claude-code vterm buffers."
       (setq my/vterm--scroll-redraw-timer nil)
       (when (frame-live-p frame)
         (redraw-frame frame)))
+    ;; Manual "unstick the rendering" command. Claude sometimes leaves the
+    ;; screen garbled until a resize or a new message; only a full claude
+    ;; repaint fixes a diff-model desync, and a resize triggers one via
+    ;; SIGWINCH. We reproduce a resize: shrink the terminal by a row, HOLD it
+    ;; briefly, then restore. The hold is essential -- a nudge-and-immediately-
+    ;; restore fails because SIGWINCHes coalesce, so claude reads the final
+    ;; (unchanged) size and skips the repaint. Holding the changed size long
+    ;; enough for claude to observe it mirrors a real, persistent resize.
+    ;; `set-process-window-size' is the primitive that actually TIOCSWINSZ's the
+    ;; pty (-> SIGWINCH); `vterm--set-size' keeps libvterm's grid in sync. We
+    ;; bypass `claude-code-optimize-window-resize' (which would suppress a
+    ;; height-only change) by calling these directly rather than via the adjust
+    ;; fn it advises. Width is recomputed exactly as vterm does (margin + shrink
+    ;; + clamp) so the restore size is right.
+    (defvar my/vterm-redraw-nudge-delay 0.1
+      "Seconds to hold the nudged terminal size before restoring it.
+Must be long enough for claude to observe the changed size and repaint.")
+    (defun my/vterm--resize (h w)
+      "Resize libvterm's grid and the pty to H rows by W cols (fires SIGWINCH)."
+      (let ((inhibit-read-only t))     ; vterm--set-size reflows the RO buffer
+        (vterm--set-size vterm--term h w))
+      (when (process-live-p vterm--process)
+        (set-process-window-size vterm--process h w)))
+    (defun my/vterm--force-redraw-restore (buf h w)
+      "Restore BUF's terminal to H by W and repaint (the deferred half)."
+      (when (buffer-live-p buf)
+        (with-current-buffer buf
+          (when (bound-and-true-p vterm--term)
+            (my/vterm--resize h w)
+            (redraw-frame)))))
+    (defun my/vterm-force-redraw ()
+      "Force claude to fully repaint its vterm buffer, like a window resize.
+Fixes garbled/stale rendering that an Emacs-only redraw can't."
+      (interactive)
+      (if (and (bound-and-true-p vterm--term) (my/claude-vterm-buffer-p))
+          (let* ((windows (get-buffer-window-list (current-buffer) nil t))
+                 (raw (and windows
+                           (funcall window-adjust-process-window-size-function
+                                    vterm--process windows))))
+            (if (not raw)
+                (redraw-frame)      ; not displayed: best-effort Emacs repaint
+              (let ((w (max vterm-min-window-width
+                            (- (car raw) (vterm--get-margin-width))))
+                    (h (cdr raw)))
+                ;; shrink and HOLD, then restore after the delay
+                (my/vterm--resize (max 2 (1- h)) w)
+                (run-at-time my/vterm-redraw-nudge-delay nil
+                             #'my/vterm--force-redraw-restore
+                             (current-buffer) h w))))
+        (user-error "Not in a claude-code vterm buffer")))
     (defun my/vterm-wheel-up (event)
       "Forward a wheel-up to the claude-code child, else scroll."
       (interactive "e")
@@ -1837,7 +1887,14 @@ Falls back to `mwheel-scroll' outside claude-code vterm buffers."
                 ;; NOTE: evil-collection binds C-c C-z to evil-collection-vterm-toggle-send-escape
                 ;; normally, so this is a workaround for now
                 "C-c C-c" 'vterm--self-insert
-                "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0))))
+                "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0))
+                ;; claude buffers are read-only so replace just errors there;
+                ;; keep it for regular vterm shells
+                "r" (cmd! (if (my/claude-vterm-buffer-p)
+                              (my/vterm-force-redraw)
+                            (call-interactively #'evil-collection-vterm-replace))))
+    (map-after! (evil-collection) :ni vterm-mode-map
+                "C-c C-r" #'my/vterm-force-redraw))
 #+end_src
 ** =eat=
 #+begin_src emacs-lisp
