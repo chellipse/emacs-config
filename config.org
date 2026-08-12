@@ -215,7 +215,7 @@ proportional/`variable-pitch' font instead of the monospace font."
 
 ** Journal File
 #+begin_src emacs-lisp
-  (defvar journal-file-path "~/journal.org"
+  (defvar journal-file-path "~/journal.org.age"
     "Path to the journal file.")
 
   (defun new-journal-entry ()
