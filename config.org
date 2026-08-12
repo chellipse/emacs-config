@@ -1729,7 +1729,16 @@ proportional/`variable-pitch' font instead of the monospace font."
               (lambda ()
                 (when (and buffer-file-name
                            (string-match-p "\\.age\\'" buffer-file-name))
-                  (setq-local file-precious-flag t))))
+                  (setq-local file-precious-flag t)
+                  ;; Re-sync the recorded modtime after each save. With
+                  ;; `file-precious-flag', `age-file-write-region' records the
+                  ;; visited modtime BEFORE `basic-save-buffer' renames the temp
+                  ;; file into place, so Emacs' recorded modtime lags one save
+                  ;; behind the real file -- `verify-visited-file-modtime'
+                  ;; returns nil and the modeline shows the file as "changed on
+                  ;; disk" right after saving. `after-save-hook' runs after the
+                  ;; rename, so re-recording the modtime there fixes the desync.
+                  (add-hook 'after-save-hook #'set-visited-file-modtime nil t))))
 
     (age-encryption-mode))
 #+end_src
