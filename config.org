@@ -390,7 +390,54 @@ proportional/`variable-pitch' font instead of the monospace font."
           doom-modeline-buffer-file-name-style 'relative-from-project
           doom-modeline-height 5)
     ;; (display-time-mode 1)
-    (column-number-mode 1))
+    (column-number-mode 1)
+
+    ;; Extra buffer stats in the mode line: total lines, word count, and file
+    ;; size in KB. Rendered through `global-mode-string', which doom-modeline's
+    ;; built-in `misc-info' segment already displays -- so no modeline-layout
+    ;; surgery, and it survives doom-modeline upgrades.
+    ;;
+    ;; The counts are computed ONLY on open/save/revert (and on demand), never
+    ;; per keystroke -- so editing a multi-MB file adds zero work; the readout
+    ;; reflects the file as last saved. Buffers past `my/buffer-stats-max-bytes'
+    ;; skip the line/word scan entirely and show size only.
+    (defvar my/buffer-stats-max-bytes (* 5 1024 1024)
+      "Above this size (bytes), show only file size, skipping the line/word scan.")
+    (defvar-local my/buffer-stats-string nil
+      "Cached buffer-stats mode-line string; refreshed on open/save, not live.")
+    (defun my/buffer-stats-refresh (&rest _)
+      "Recompute the buffer-stats mode-line readout for the current buffer.
+  Runs on open/save/revert -- not on every edit -- so it stays cheap in large
+  files. Call interactively to refresh mid-edit. `widen' makes counts cover the
+  whole buffer under narrowing."
+      (interactive)
+      (setq my/buffer-stats-string
+            (when (or buffer-file-name
+                      (derived-mode-p 'prog-mode 'text-mode 'conf-mode))
+              (let* ((bytes (if (and buffer-file-name
+                                     (file-exists-p buffer-file-name))
+                                (or (file-attribute-size
+                                     (file-attributes buffer-file-name))
+                                    0)
+                              (- (position-bytes (point-max))
+                                 (position-bytes (point-min)))))
+                     (kb (format "%.1fKB" (/ bytes 1024.0))))
+                (if (> bytes my/buffer-stats-max-bytes)
+                    kb ;; too big to scan cheaply -- size only
+                  (save-restriction
+                    (widen)
+                    (format "%dL %dW %s"
+                            (count-lines (point-min) (point-max))
+                            (count-words (point-min) (point-max))
+                            kb)))))))
+    (defun my/buffer-stats ()
+      "Return the cached buffer-stats string, computing it once if unset."
+      (or my/buffer-stats-string
+          (progn (my/buffer-stats-refresh) my/buffer-stats-string)))
+    (add-hook 'find-file-hook #'my/buffer-stats-refresh)
+    (add-hook 'after-save-hook #'my/buffer-stats-refresh)
+    (add-hook 'after-revert-hook #'my/buffer-stats-refresh)
+    (add-to-list 'global-mode-string '(:eval (my/buffer-stats)) t))
 #+end_src
 ** Theme
 *** Doom Themes
