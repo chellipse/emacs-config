@@ -311,6 +311,48 @@ proportional/`variable-pitch' font instead of the monospace font."
   (map! :n eww-mode-map
         "H" #'eww-back-url)
 #+end_src
+** History
+#+begin_src emacs-lisp
+  ;; Persist EWW's visited-URL history across restarts. `eww' builds its
+  ;; prompt completion table from `eww-prompt-history' (a plain defvar that
+  ;; normally resets each session), so we (a) record every rendered page --
+  ;; not just URLs typed at the prompt, but links clicked through too -- and
+  ;; (b) have savehist save the variable to disk.
+  (with-eval-after-load 'eww
+    (defun my/eww-record-url ()
+      "Add the current page's URL to `eww-prompt-history' for completion."
+      (when-let* ((url (plist-get eww-data :url)))
+        (add-to-history 'eww-prompt-history url 1000)))
+    (add-hook 'eww-after-render-hook #'my/eww-record-url)
+
+    (defun my/eww-forget-url (url)
+      "Permanently remove URL from `eww-prompt-history'.
+  Completes over history (defaulting to the current page) and writes the
+  savehist file immediately, so the entry won't come back on restart --
+  though visiting the page again re-records it."
+      (interactive
+       (list (completing-read "Forget EWW URL: " eww-prompt-history nil t nil nil
+                              (and (derived-mode-p 'eww-mode)
+                                   (plist-get eww-data :url)))))
+      (setq eww-prompt-history (delete url eww-prompt-history))
+      (when (bound-and-true-p savehist-mode) (savehist-save))
+      (message "Forgot %s" url)))
+
+  ;; Address-bar behaviour for the EWW URL prompt: preselect what you TYPED,
+  ;; not a longer visited URL that has it as a prefix -- so RET visits
+  ;; "example.com/" even while "example.com/writing.html" is in history.
+  ;; Suggestions are still reachable with C-n / down. Keyed on the prompt's
+  ;; history variable so it only affects `eww', not other minibuffers.
+  ;; (M-RET / `vertico-exit-input' does the same ad hoc in any minibuffer.)
+  (defun my/eww-prompt-preselect-input ()
+    "In the EWW URL prompt, preselect the typed input rather than a candidate."
+    (when (eq minibuffer-history-variable 'eww-prompt-history)
+      (setq-local vertico-preselect 'prompt)))
+  (add-hook 'minibuffer-setup-hook #'my/eww-prompt-preselect-input)
+
+  (savehist-mode 1)
+  (add-to-list 'savehist-additional-variables 'eww-prompt-history)
+#+end_src
 * UI
 ** Font
 #+begin_src emacs-lisp
