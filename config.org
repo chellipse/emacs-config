@@ -173,6 +173,25 @@
     (refresh-global-font-size)
     (message "Font size: %d" font-size))
 
+  (defun select-global-font (&optional proportional)
+    "Pick a system font via completion and apply it globally.
+Completes over every installed font family (orderless matching
+applies via `completion-styles').  With a prefix argument set the
+proportional/`variable-pitch' font instead of the monospace font."
+    (interactive "P")
+    (let* ((families (sort (delete-dups (font-family-list)) #'string<))
+           (font (completing-read
+                  (format "%s font: " (if proportional "Proportional" "Monospace"))
+                  families nil t)))
+      (if proportional
+          (progn
+            (setq default-font-propo font)
+            (set-face-attribute 'variable-pitch t :family font)
+            (message "Proportional font: %s" font))
+        (setq default-font-mono font)
+        (refresh-global-font-size)
+        (message "Monospace font: %s" font))))
+
   (defun search-wikipedia ()
     (interactive)
     (let ((search (read-string "Search: ")))
