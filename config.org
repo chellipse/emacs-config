@@ -2452,7 +2452,58 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
             (goto-char (point-max))
             ;; keep ~5 lines above visible so the sent message stays on screen
             (recenter 5)))))
-    (advice-add 'shell-maker-submit :after #'my/agent-shell-scroll-prompt-to-top))
+    (advice-add 'shell-maker-submit :after #'my/agent-shell-scroll-prompt-to-top)
+
+    ;; Desktop notification (via notify-send) when the agent needs you -- it
+    ;; either finished its turn or is asking permission to run a tool. Same
+    ;; idea as the claude-code.el notify hook. agent-shell exposes an event
+    ;; bus; `agent-shell-mode-hook' is the documented-safe place to subscribe,
+    ;; and subscriptions are torn down with the buffer, so nothing leaks.
+    (defcustom my/agent-shell-notify-when-focused nil
+      "If nil, suppress notifications while you're focused on the shell buffer."
+      :type 'boolean :group 'agent-shell)
+
+    (defun my/agent-shell--focused-p (buffer)
+      "Non-nil when BUFFER is shown in a window on the focused frame.
+    Uses focus rather than mere visibility: on a tiling/Wayland WM, Emacs
+    treats a frame on another workspace as \"visible\", so that alone would
+    wrongly suppress the notification you actually want."
+      (when-let* ((win (get-buffer-window buffer t)))
+        (eq (frame-focus-state (window-frame win)) t)))
+
+    (defun my/agent-shell-notify (title body &optional urgency)
+      "Fire a desktop notification via notify-send when it's available."
+      (when (executable-find "notify-send")
+        (apply #'start-process "agent-shell-notify" nil "notify-send"
+               "-a" "Agent Shell"
+               (append (when urgency (list "-u" urgency))
+                       (list title body)))))
+
+    (defun my/agent-shell-attention (event)
+      "Notify when the agent in the current shell buffer needs input."
+      (let ((buffer (current-buffer)))
+        (when (or my/agent-shell-notify-when-focused
+                  (not (my/agent-shell--focused-p buffer)))
+          (pcase (map-elt event :event)
+            ('permission-request
+             (my/agent-shell-notify
+              "Agent needs permission"
+              (or (map-nested-elt event '(:data :tool-call :title))
+                  "A tool call is awaiting your approval")
+              "critical"))
+            ('turn-complete
+             (my/agent-shell-notify
+              "Agent finished — your turn"
+              (buffer-name buffer)))))))
+
+    (defun my/agent-shell-subscribe-attention ()
+      "Subscribe the current shell buffer to input-needed notifications."
+      (dolist (ev '(permission-request turn-complete))
+        (agent-shell-subscribe-to
+         :shell-buffer (current-buffer)
+         :event ev
+         :on-event #'my/agent-shell-attention)))
+    (add-hook 'agent-shell-mode-hook #'my/agent-shell-subscribe-attention))
 #+end_src
 ** =elfeed=
 #+begin_src emacs-lisp
