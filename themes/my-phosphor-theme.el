@@ -219,20 +219,34 @@ determine the exact padding."
    ;;;; mic-paren
    (paren-face-match
     :foreground yellow :background (doom-darken bg 0.2) :weight 'ultra-bold)
-   ;;;; outline <built-in>
-   ((outline-1 &override) :foreground blue)
-   ((outline-2 &override) :foreground green)
-   ((outline-3 &override) :foreground teal)
-   ((outline-4 &override) :foreground (doom-darken blue 0.2))
-   ((outline-5 &override) :foreground (doom-darken green 0.2))
-   ((outline-6 &override) :foreground (doom-darken teal 0.2))
-   ((outline-7 &override) :foreground (doom-darken blue 0.4))
-   ((outline-8 &override) :foreground (doom-darken green 0.4))
+   ;;;; outline <built-in> -- colors kept green; heading sizes/italic/extend
+   ;; kept from `my-frankenone' (a previewed theme's outline scaling, visible
+   ;; in outline-mode and markdown headers, which inherit these).
+   ((outline-1 &override) :foreground blue :height 1.8 :slant 'italic :extend t)
+   ((outline-2 &override) :foreground green :height 2.16 :slant 'italic :extend t)
+   ((outline-3 &override) :foreground teal :height 2.376 :slant 'italic :extend t)
+   ((outline-4 &override) :foreground (doom-darken blue 0.2) :height 2.376 :slant 'italic :extend t)
+   ((outline-5 &override) :foreground (doom-darken green 0.2) :height 2.376 :slant 'italic :extend t)
+   ((outline-6 &override) :foreground (doom-darken teal 0.2) :height 2.376 :slant 'italic :extend t)
+   ((outline-7 &override) :foreground (doom-darken blue 0.4) :height 2.376 :slant 'italic :extend t)
+   ((outline-8 &override) :foreground (doom-darken green 0.4) :height 2.376 :slant 'italic :extend t)
    ;;;; org <built-in>
    ((org-block &override) :background base2)
    ((org-block-begin-line &override) :background base2)
    (org-hide :foreground hidden)
    (org-todo :foreground cyan :bold 'inherit)
+   ((org-document-title &override) :height 1.25)   ; #+TITLE size kept from frankenone
+   ;; Org headings kept from `my-frankenone' (Material/Palenight colors +
+   ;; sizes) -- doom leaves org-level-* inheriting outline, so they need to
+   ;; be set natively here to survive standalone.
+   (org-level-1 :height 1.2  :weight 'bold :foreground "#c3e88d")
+   (org-level-2 :height 1.15 :weight 'bold :foreground "#ffcb6b")
+   (org-level-3 :height 1.1  :weight 'bold :foreground "#f57373")
+   (org-level-4 :height 1.05 :weight 'bold :foreground "#89DDFF")
+   (org-level-5 :weight 'bold :foreground "#82aaff")
+   (org-level-6 :weight 'bold :foreground "#c792ea")
+   (org-level-7 :weight 'bold :foreground "#44b9b1")
+   (org-level-8 :weight 'bold :foreground "#bb80b3")
    ;;;; org-pomodoro
    (org-pomodoro-mode-line :inherit 'mode-line-emphasis :weight 'bold)
    (org-pomodoro-mode-line-overtime :inherit 'org-pomodoro-mode-line)
