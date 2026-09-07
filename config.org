@@ -1785,7 +1785,15 @@ proportional/`variable-pitch' font instead of the monospace font."
     (general-def
       :keymaps '(magit-file-section-map magit-hunk-section-map)
       "RET" #'magit-diff-visit-file-other-window
-      "C-<return>" #'magit-diff-visit-worktree-file-other-window))
+      "C-<return>" #'magit-diff-visit-worktree-file-other-window)
+    ;; evil-collection-magit rebinds C-f to `evil-scroll-page-down' in
+    ;; `magit-mode-map' (normal state), shadowing our global C-f window cycle.
+    ;; Rebind it back -- this :config runs after evil-collection-magit-setup
+    ;; (evil-collection-init is far earlier, at the evil block), so it wins.
+    (general-def
+      :states 'normal
+      :keymaps 'magit-mode-map
+      "C-f" #'other-window))
 #+end_src
 ** =vterm=
 #+begin_src emacs-lisp
