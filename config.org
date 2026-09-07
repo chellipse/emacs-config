@@ -1482,6 +1482,11 @@ proportional/`variable-pitch' font instead of the monospace font."
 #+begin_src emacs-lisp
   (add-to-list 'auto-mode-alist '("\\.cppz\\'" . c++-ts-mode))
   (add-to-list 'auto-mode-alist '("\\.hz\\'" . c++-ts-mode))
+
+  ;; treat '_' as part of a word in C, since C uses snake_case -- makes evil
+  ;; word motions (w/e/b, ciw, ...) span whole identifiers like foo_bar
+  (add-hook! (c-mode-hook c-ts-mode-hook)
+             (lambda () (modify-syntax-entry ?_ "w")))
 #+end_src
 ** =typescript-ts-mode=
 #+begin_src emacs-lisp
