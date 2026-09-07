@@ -153,6 +153,11 @@ determine the exact padding."
   ((lazy-highlight :background (doom-darken magenta 0.4) :foreground fg)
    ((line-number &override) :foreground base4)
    ((line-number-current-line &override) :foreground fg)
+   ;; Blend the fringe into the buffer background. Without this, my-frankenone
+   ;; (loaded underneath) leaves its explicit `:background "grey30"' on the
+   ;; fringe -- phosphor's base fringe only sets a foreground, so the grey
+   ;; leaks through and clashes with `bg'. Setting it here (top theme wins).
+   ((fringe &override) :background bg)
    (mode-line
     :background modeline-bg :foreground modeline-fg
     :box (if -modeline-pad `(:line-width ,-modeline-pad :color ,modeline-bg)))
