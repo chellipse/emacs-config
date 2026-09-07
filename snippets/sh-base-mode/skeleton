@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: skeleton
+# key: skel
+# --
+#!/usr/bin/env bash
+
+$0
