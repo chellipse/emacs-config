@@ -1328,7 +1328,15 @@ proportional/`variable-pitch' font instead of the monospace font."
     ;; Override no-littering, which forces this to ~/.emacs.d/etc/yasnippet/snippets/
     (yas-snippet-dirs (list (expand-file-name "snippets" user-emacs-directory)))
     :config
-    (yas-global-mode 1))
+    (yas-global-mode 1)
+
+    ;; Expand a yasnippet template when visiting a file that doesn't
+    ;; exist yet (built-in autoinsert.el fires on empty/new files).
+    (auto-insert-mode 1)
+    (setq auto-insert-query nil)
+    (define-auto-insert "\\.sh\\'"
+      (lambda ()
+        (yas-expand-snippet (yas-lookup-snippet "skeleton" 'sh-base-mode)))))
 #+end_src
 * Langs
 ** =prog-mode=
