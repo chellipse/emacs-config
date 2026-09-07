@@ -2585,9 +2585,11 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
 ** =org: org-edit-src=
 #+begin_src emacs-lisp
   (defun my/org-edit-src-exit-advice (orig-fun &rest args)
-    "Format buffer with Apheleia if formatter exists for major mode, then exit org src block."
+    "Format buffer with Apheleia if formatter exists for major mode, then exit org src block.
+
+  Skipped for org's own transparent edit-buffer round trips -- see below."
     (let ((formatter (alist-get major-mode apheleia-mode-alist)))
-      (if formatter
+      (if (and formatter (not (eq org-src-window-setup 'switch-invisibly)))
           (let ((orig orig-fun)
                 (arguments args))
             (apheleia-format-buffer
