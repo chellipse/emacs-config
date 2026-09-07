@@ -1272,19 +1272,11 @@ proportional/`variable-pitch' font instead of the monospace font."
 * Programming
 ** =electric-pair=
 #+begin_src emacs-lisp
-  (electric-pair-mode 1)
-
-  (setq electric-pair-pairs '())
-  (defun my-electric-pair-specific-mode-config ()
-    (cond
-     ((member major-mode '(rust-mode rust-ts-mode))
-      (setq-local electric-pair-pairs '((?\" . ?\")
-                                        (?\' . ?\')
-                                        (?\{ . ?\})
-                                        (?\( . ?\))
-                                        (?\[ . ?\]))))))
-
-  (add-hook 'after-change-major-mode-hook 'my-electric-pair-specific-mode-config)
+  ;; Auto-pairing disabled: typing a delimiter no longer inserts its match,
+  ;; skips over an existing close, or deletes the pair.  It was more of a
+  ;; nuisance while writing than a time-saver.  Use `-1' (rather than just
+  ;; dropping the enable) so a config reload also turns it off mid-session.
+  (electric-pair-mode -1)
 #+end_src
 ** =apheleia=
 #+begin_src emacs-lisp
