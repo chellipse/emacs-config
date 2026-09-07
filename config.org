@@ -1050,6 +1050,17 @@ proportional/`variable-pitch' font instead of the monospace font."
     (evil-snipe-repeat-scope 'whole-visible) ; Same for repeat
     (evil-snipe-smart-case t))        ; Smart case sensitivity
 #+end_src
+** =anzu=
+#+begin_src emacs-lisp
+  (use-package anzu
+    :after doom-modeline
+    :config
+    (global-anzu-mode +1))
+
+  (use-package evil-anzu
+    :after (evil anzu)
+    :demand t)
+#+end_src
 ** =undo-tree=
 #+begin_src emacs-lisp
   (use-package undo-tree
