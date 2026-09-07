@@ -768,8 +768,35 @@ proportional/`variable-pitch' font instead of the monospace font."
 ** Frame Alpha
 #+begin_src emacs-lisp
   (setq frame-alpha-param (if (eq system-type 'darwin) 'alpha 'alpha-background))
-  (setq default-frame-alpha 100)
+  (setq default-frame-alpha 95)
   (add-to-list 'default-frame-alist `(,frame-alpha-param . ,default-frame-alpha))
+
+  (defvar my/frame-alpha-step 5
+    "Percentage step for `my/frame-alpha-adjust'.")
+  (defvar my/frame-alpha-min 10
+    "Floor for the frame alpha, so the frame never becomes illegible.")
+  (defvar my/frame-alpha-max 100
+    "Ceiling for the frame alpha; >100 is invalid for the alpha parameter.")
+
+  (defun my/frame-alpha-current ()
+    "Return the current frame alpha as a number.
+  Falls back to `default-frame-alpha' when the parameter is unset or not a
+  plain number (e.g. a stale out-of-range value, or an (active . inactive)
+  cons), which is what un-wedges the adjustment commands."
+    (let ((a (frame-parameter nil frame-alpha-param)))
+      (if (numberp a) a default-frame-alpha)))
+
+  (defun my/frame-alpha-set (value)
+    "Set the frame alpha to VALUE clamped to
+  [`my/frame-alpha-min', `my/frame-alpha-max'] and echo the result."
+    (let ((alpha (max my/frame-alpha-min (min my/frame-alpha-max (round value)))))
+      (set-frame-parameter nil frame-alpha-param alpha)
+      (message "Frame opacity: %d%%" alpha)
+      alpha))
+
+  (defun my/frame-alpha-adjust (delta)
+    "Change the frame alpha by DELTA (clamped), echoing the new value."
+    (my/frame-alpha-set (+ (my/frame-alpha-current) delta)))
 #+end_src
 ** GUI Elements
 #+begin_src emacs-lisp
@@ -1013,9 +1040,9 @@ proportional/`variable-pitch' font instead of the monospace font."
           "C-x x" #'revert-buffer-quick
           "9" (cmd! (scroll-up 18))
           "0" (cmd! (scroll-down 18))
-          "M-+" (cmd! (set-frame-parameter nil frame-alpha-param default-frame-alpha))
-          "M-=" (cmd! (set-frame-parameter nil frame-alpha-param (+ (frame-parameter nil frame-alpha-param) 1)))
-          "M--" (cmd! (set-frame-parameter nil frame-alpha-param (- (frame-parameter nil frame-alpha-param) 1)))
+          "M-+" (cmd! (my/frame-alpha-set default-frame-alpha))
+          "M-=" (cmd! (my/frame-alpha-adjust my/frame-alpha-step))
+          "M--" (cmd! (my/frame-alpha-adjust (- my/frame-alpha-step)))
           "C-+" (cmd! (setq font-size default-font-size) (refresh-global-font-size))
           "C-=" #'increase-global-font-size
           "C--" #'decrease-global-font-size
