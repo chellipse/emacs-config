@@ -1118,6 +1118,7 @@ the monospace font."
                              (consult-buffer)))
                  "l" #'consult-line
                  "L" (cmd! (consult-line-multi t))
+                 "s" #'my/consult-line-defun
                  "g" #'consult-fd
                  "r" #'consult-ripgrep
                  "m" #'consult-imenu
@@ -1268,6 +1269,17 @@ the monospace font."
       "Consult diagnostics dyn fn, changes between consult-flymake and consult-flycheck based on mode")
     (add-hook 'flymake-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flymake)))
     (add-hook 'flycheck-mode-hook (cmd! (setq dynamic-diagnostic-fn #'consult-flycheck)))
+
+    ;; `consult-line' scoped the function the cursor is currently in
+    (defun my/consult-line-defun ()
+      "Search lines with `consult-line', scoped to the current function."
+      (interactive)
+      (save-restriction
+        (narrow-to-defun)
+        (consult-line)))
+    (after! (evil)
+            (evil-set-command-property 'my/consult-line-defun :jump t))
+
     :config
     (require 'consult-xref)
     (require 'consult-imenu)
