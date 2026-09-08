@@ -1990,6 +1990,15 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
                  "b r" 'envrc-reload)
     (envrc-global-mode))
 #+end_src
+** =activity-watch-mode=
+send buffer, major mode and projectile project heartbeats to the local
+aw-server for editing time reports by project and language. the activitywatch
+nix module manages the server as a user service; reporting tolerates downtime.
+#+begin_src emacs-lisp
+  (use-package activity-watch-mode
+    :config
+    (global-activity-watch-mode))
+#+end_src
 * Tools
 ** =age=
 #+begin_src emacs-lisp
