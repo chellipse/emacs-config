@@ -492,7 +492,8 @@ the monospace font."
           doom-modeline-always-show-macro-register t
           doom-modeline-buffer-encoding 'non-default
           doom-modeline-buffer-file-name-style 'relative-from-project
-          doom-modeline-height 5)
+          doom-modeline-height 5
+          doom-modeline-percent-position nil)
     ;; (display-time-mode 1)
     (column-number-mode 1)
 
