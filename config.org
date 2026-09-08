@@ -1181,14 +1181,9 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
                  "z z" #'writeroom-mode)
     (map-leader! :n '(global evil-mode-map) "f"
                  "f" #'consult-buffer
-                 ;; Match claude-code buffers (*claude:...) OR agent-shell
-                 ;; "Claude Agent @ dir" buffers, via orderless-regexp. The
-                 ;; uppercase in "Claude" makes it case-sensitive (smart-case),
-                 ;; so lowercase acp-client-stderr(claude-agent-acp) buffers
-                 ;; are excluded. The `.' matches the space (avoids splitting).
-                 "c" (cmd! (minibuffer-with-setup-hook
-                               (lambda () (insert "\\*claude:\\|Claude.Agent "))
-                             (consult-buffer)))
+                 ;; every agent buffer, matched by mode rather than by name, so
+                 ;; new agents (codex, ...) show up without touching a regexp.
+                 "c" (cmd! (consult-buffer (list my/consult--source-agent-buffer)))
                  "l" #'consult-line
                  "L" (cmd! (consult-line-multi t))
                  "s" #'my/consult-line-defun
@@ -1477,6 +1472,35 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
         (consult-line)))
     (after! (evil)
             (evil-set-command-property 'my/consult-line-defun :jump t))
+
+    ;; source behind `f c'. matching on the major mode rather than the buffer
+    ;; name means every agent-shell agent is covered -- "Claude Agent @ dir",
+    ;; "Codex @ dir", and whatever comes next -- along with agent-shell's
+    ;; viewport/diff sub-modes, which all share the mode-name prefix. the
+    ;; lowercase acp-client-stderr(...) and *acp error* buffers stay out
+    ;; because they are fundamental-mode. claude-code's vterm buffers have no
+    ;; agent-shell mode at all, hence the separate name check -- spelled out
+    ;; rather than calling `my/claude-vterm-buffer-p', which lives in vterm's
+    ;; :config and is void until vterm has been loaded.
+    ;; in `:init' so the key works before consult has been loaded.
+    (defun my/agent-buffer-p (&optional buffer)
+      "Non-nil if BUFFER is any agent shell, or a claude-code vterm."
+      (or (string-prefix-p "*claude" (buffer-name buffer))
+          (string-prefix-p "agent-shell"
+                           (symbol-name (buffer-local-value
+                                         'major-mode (or buffer (current-buffer)))))))
+
+    (defvar my/consult--source-agent-buffer
+      `(:name "Agent"
+              :narrow ?a
+              :category buffer
+              :face consult-buffer
+              :state ,#'consult--buffer-state
+              :items ,(lambda ()
+                        (consult--buffer-query :sort 'visibility
+                                               :as #'buffer-name
+                                               :predicate #'my/agent-buffer-p)))
+      "Agent buffer source for `consult-buffer'.")
 
     :config
     (require 'consult-xref)
