@@ -1654,6 +1654,10 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
     :demand t
     :after treesit
     :config
+    ;; treesit-fold 0.2.1 calls treesit-fold-indicators-refresh without loading
+    ;; its definition. require it before folding to prevent void-function
+    ;; errors.
+    (require 'treesit-fold-indicators)
     (global-treesit-fold-mode 1))
 #+end_src
 ** =yasnippet=
