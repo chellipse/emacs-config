@@ -1101,6 +1101,10 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     ;; every buffer to its *initial* evil state -- e.g. comint-derived buffers
     ;; (agent-shell) snap back to insert. Guarding it preserves live states.
     (unless (bound-and-true-p evil-mode) (evil-mode 1))
+
+    ;; no more confusing fallback
+    (setq evil-goto-definition-functions '(evil-goto-definition-xref))
+
     (defun my/window-swap-in-direction (dir)
       "Swap the current window's buffer with the neighbor in DIR, and
     follow the buffer so it looks like the window shifted one slot over.
