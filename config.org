@@ -908,12 +908,17 @@ the monospace font."
   (tool-bar-mode -1)
   (tooltip-mode -1)
   (setq inhibit-startup-message t)
-  ;; Open *scratch* in Org mode.
-  (setq initial-major-mode 'org-mode)
-  ;; The startup *scratch* is created before init, so switch it over too.
-  (when-let* ((buf (get-buffer "*scratch*")))
-    (with-current-buffer buf
-      (unless (derived-mode-p 'org-mode) (org-mode))))
+  ;; *scratch* backed by ~/scratch.org
+  (setq initial-major-mode 'org-mode) ; fallback for fresh *scratch*
+  (defun my/scratch-file-backed ()
+    "Make *scratch* visit ~/scratch.org (read on startup, saved manually)."
+    (let ((buf (find-file-noselect (expand-file-name "~/scratch.org"))))
+      (unless (equal (buffer-name buf) "*scratch*")
+        ;; free the name by dropping the original ephemeral *scratch*
+        (when-let* ((old (get-buffer "*scratch*")))
+          (unless (eq old buf) (kill-buffer old)))
+        (with-current-buffer buf (rename-buffer "*scratch*")))))
+  (add-hook 'emacs-startup-hook #'my/scratch-file-backed)
 #+end_src
 ** Line Numbers
 #+begin_src emacs-lisp
