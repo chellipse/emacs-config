@@ -2078,6 +2078,16 @@ nix module manages the server as a user service; reporting tolerates downtime.
           (error "Age encryption produced empty output — refusing to write"))
         result))
 
+    (defun my/age-ensure-handler ()
+      "restore the age handler before saving an age buffer.
+without it, saves silently write plaintext. reload-config previously removed
+it by repeating init.el setup without rerunning the restoration hook.
+keep this before-save-hook guard even with the init.el fix."
+      (unless (rassq 'age-file-handler file-name-handler-alist)
+        (age-file-enable)
+        (message "age: file-name handler was MISSING; re-enabled it before saving %s"
+                 (buffer-name))))
+
     ;; Atomic saves: write to temp file then rename, so a crash mid-write
     ;; can't truncate/destroy the existing encrypted file.
     (add-hook 'find-file-hook
@@ -2085,6 +2095,8 @@ nix module manages the server as a user service; reporting tolerates downtime.
                 (when (and buffer-file-name
                            (string-match-p "\\.age\\'" buffer-file-name))
                   (setq-local file-precious-flag t)
+                  ;; restore the encryption handler before saving.
+                  (add-hook 'before-save-hook #'my/age-ensure-handler nil t)
                   ;; Re-sync the recorded modtime after each save. With
                   ;; `file-precious-flag', `age-file-write-region' records the
                   ;; visited modtime BEFORE `basic-save-buffer' renames the temp
