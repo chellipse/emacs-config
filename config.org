@@ -1282,6 +1282,76 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     :after (evil anzu)
     :demand t)
 #+end_src
+** Encrypted-file hardening
+undo history and org element caches can persist decrypted buffer data under
+var/ without using encryption handlers. detect encrypted buffers through
+file-name-handler-alist rather than extensions, and disable these disk caches
+for files handled by age or easypg. see the undo-tree and org hooks below.
+#+begin_src emacs-lisp
+  (defun my/encrypted-file-buffer-p ()
+    "return non-nil if the buffer uses an age or easypg write handler.
+detect encryption through file-name-handler-alist rather than extensions."
+    (and buffer-file-name
+         (memq (find-file-name-handler buffer-file-name 'write-region)
+               '(age-file-handler epa-file-handler))))
+
+  ;; org-persist writes headline text and structure under var/org/persist/.
+  ;; disable persistent caching for encrypted buffers, then reset the cache to
+  ;; unregister existing disk data. the in-memory cache remains enabled.
+  (with-eval-after-load 'org
+    (add-hook 'org-mode-hook
+              (lambda ()
+                (when (my/encrypted-file-buffer-p)
+                  (setq-local org-element-cache-persistent nil)
+                  (when (fboundp 'org-element-cache-reset)
+                    (org-element-cache-reset))))))
+
+  ;; audit possible plaintext derivatives under var/. undo, backup and autosave
+  ;; filenames often encode the source path. inspect only names with encrypted
+  ;; extensions, then check for ciphertext headers. this is a heuristic, not a
+  ;; complete leak scan.
+  (defun my/file-encrypted-on-disk-p (file)
+    "return non-nil if the file header resembles age or openpgp ciphertext."
+    (ignore-errors
+      (with-temp-buffer
+        (let ((coding-system-for-read 'no-conversion))
+          (insert-file-contents-literally file nil 0 64))
+        (and (> (buffer-size) 0)
+             (or (save-excursion (search-forward "age-encryption.org" nil t))
+                 (save-excursion (search-forward "BEGIN AGE ENCRYPTED" nil t))
+                 (save-excursion (search-forward "BEGIN PGP MESSAGE" nil t))
+                 ;; binary openpgp packet tags have the high bit set.
+                 (>= (char-after (point-min)) #x80))))))
+
+  (defun my/audit-encrypted-leaks (&optional interactive)
+    "warn about possible plaintext derivatives of encrypted files under var/.
+return suspect paths using the my/file-encrypted-on-disk-p heuristic."
+    (interactive "p")
+    (let* ((root (ignore-errors (no-littering-expand-var-file-name "")))
+           (enc-re "\\.\\(age\\|gpg\\|asc\\|pgp\\)\\(~\\|\\.~undo-tree~\\)?\\'")
+           (leaks nil))
+      (when (and root (file-directory-p root))
+        (dolist (f (directory-files-recursively root ".*"))
+          (let ((decoded (replace-regexp-in-string "!" "/" (file-name-nondirectory f))))
+            (when (and (string-match-p enc-re decoded)
+                       (not (my/file-encrypted-on-disk-p f)))
+              (push f leaks)))))
+      (dolist (f leaks)
+        (display-warning
+         'security
+         (format "Plaintext derivative of an encrypted file on disk: %s" f)
+         :error))
+      (when interactive
+        (message (if leaks "%d encrypted-file leak(s) found -- see *Warnings*"
+                   "No plaintext leaks of encrypted files under var/")
+                 (length leaks)))
+      leaks))
+
+  ;; run once on an idle timer to avoid blocking init or adding timers on
+  ;; reload.
+  (unless after-init-time
+    (run-with-idle-timer 5 nil #'my/audit-encrypted-leaks))
+#+end_src
 ** =undo-tree=
 #+begin_src emacs-lisp
   (use-package undo-tree
@@ -1293,7 +1363,21 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
           undo-tree-history-directory-alist
           `(("." . ,(no-littering-expand-var-file-name "undo-tree-hist/"))))
     ;; Don't warn about undo history conflicts between instances
-    (setq undo-tree-enable-undo-in-region nil))
+    (setq undo-tree-enable-undo-in-region nil)
+
+    ;; undo-tree writes inserted and deleted text under var/undo-tree-hist/
+    ;; without encryption handlers. block history saves and loads for encrypted
+    ;; buffers. checking the handler in both functions avoids dependence on hook
+    ;; order, file extensions or per-buffer settings.
+    (define-advice undo-tree-save-history
+        (:before-while (&rest _) skip-encrypted-files)
+      "skip persistent undo writes for encrypted buffers."
+      (not (my/encrypted-file-buffer-p)))
+
+    (define-advice undo-tree-load-history
+        (:before-while (&rest _) skip-encrypted-files)
+      "skip persistent undo reads for encrypted buffers, including old history."
+      (not (my/encrypted-file-buffer-p))))
 #+end_src
 * Completion
 ** =prescient=
