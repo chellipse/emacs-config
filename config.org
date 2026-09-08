@@ -1132,6 +1132,38 @@ the monospace font."
     (map! :ni '(global evil-mode-map)
           "C-f" #'other-window
           "C-<escape>" #'claude-code-send-escape)
+
+    ;; normal scroll commands don't scroll a consistent number of lines in word
+    ;; wrapped buffers. this alternative has more desireable behavior
+    (defun my/scroll-screen-lines (n)
+      "Scroll the selected window by N screen lines; negative N scrolls back.
+    Exact in both directions, including word-wrapped buffers, so that N down
+    and N back up returns to the same row."
+      (let* ((win (selected-window))
+             (start (window-start win))
+             ;; Point's row in the window, clamped: if point sits below the
+             ;; window (agent-shell parks it at the prompt), restoring its row
+             ;; verbatim would push it off-screen and redisplay would undo the
+             ;; scroll to bring it back.
+             (row (max 0 (min (1- (window-body-height win))
+                              (if (>= (point) start)
+                                  (count-screen-lines start (point) nil win)
+                                0))))
+             (new-start
+              (if (> n 0)
+                  (save-excursion (goto-char start) (vertical-motion n win) (point))
+                (save-excursion
+                  (goto-char start)
+                  (vertical-motion (* 2 n) win)   ; deliberate overshoot
+                  (let ((over (- (count-screen-lines (point) start nil win) (- n))))
+                    (when (> over 0) (vertical-motion over win))
+                    (point))))))
+        (cond ((and (> n 0) (= new-start start)) (signal 'end-of-buffer nil))
+              ((and (< n 0) (= new-start start)) (signal 'beginning-of-buffer nil)))
+        (set-window-start win new-start)
+        (goto-char new-start)
+        (vertical-motion row win)))
+
     (map! :n '(global evil-mode-map)
           "C-w n" #'transpose-frame
           "C-w =" #'balance-windows-area
@@ -1143,8 +1175,8 @@ the monospace font."
           "C-c 2" #'claude-code-send-2
           "C-c 3" #'claude-code-send-3
           "C-x x" #'revert-buffer-quick
-          "9" (cmd! (scroll-up 18))
-          "0" (cmd! (scroll-down 18))
+          "9" (cmd! (my/scroll-screen-lines 18))
+          "0" (cmd! (my/scroll-screen-lines -18))
           "M-+" (cmd! (my/frame-alpha-set default-frame-alpha))
           "M-=" (cmd! (my/frame-alpha-adjust my/frame-alpha-step))
           "M--" (cmd! (my/frame-alpha-adjust (- my/frame-alpha-step)))
@@ -1947,7 +1979,9 @@ the monospace font."
     (general-def
       :states 'normal
       :keymaps 'magit-mode-map
-      "C-f" #'other-window))
+      "C-f" #'other-window
+      "9" (cmd! (my/scroll-screen-lines 18))
+      "0" (cmd! (my/scroll-screen-lines -18))))
 #+end_src
 ** =vterm=
 #+begin_src emacs-lisp
