@@ -557,6 +557,7 @@ the monospace font."
 
     ;; (load-theme 'doom-one t)
     ;; (load-theme 'my-doom-laserwave t)
+    (load-theme 'my-frankenone t)
     (load-theme 'my-phosphor t)
 
     ;; doom-themes-org-config may not exist in all versions
