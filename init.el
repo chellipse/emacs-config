@@ -5,11 +5,17 @@
 ;;
 ;;; Code:
 
-(set 'gc-cons-threshold most-positive-fixnum)
+;; guard startup optimizations with after-init-time because reload-config reruns
+;; this file but startup and after-init hooks only run once. otherwise reload
+;; leaves the gc threshold at most-positive-fixnum and removes the age handler,
+;; allowing plaintext saves.
 
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (run-at-time "2" nil (lambda () (set 'gc-cons-threshold (* 32 1024 1024))))))
+(unless after-init-time
+  (set 'gc-cons-threshold most-positive-fixnum)
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              ;; restore the normal 32 mib threshold after startup.
+              (run-at-time "2" nil (lambda () (set 'gc-cons-threshold (* 32 1024 1024)))))))
 
 (setq-default bidi-display-reordering 'left-to-right
               bidi-paragraph-direction 'left-to-right)
