@@ -149,15 +149,75 @@
     (interactive)
     (load-file (expand-file-name "init.el" user-emacs-directory)))
 
+  ;; All defined under UI > Font, which tangles after this block; declared
+  ;; here so the byte-compiler knows the font functions below are touching
+  ;; dynamic variables rather than typos.
+  (defvar font-size)
+  (defvar default-font-mono)
+  (defvar default-font-propo)
+  (defvar my/font-mono-candidates)
+  (defvar my/font-propo-candidates)
+  (defvar my/font-cjk-candidates)
+
+  (defvar my/font-families-cache nil
+    "Memoized result of `my/font-families'.")
+
+  (defun my/font-families (&optional refresh)
+    "Return every installed font family, according to fc-list.
+Used in preference to `font-family-list' because that one needs a
+graphical display, and the daemon loads this config before any display
+exists.  fc-list also reports width variants that `font-family-list'
+hides -- see `select-global-font'.  With REFRESH, re-run fc-list rather
+than reusing the cached answer."
+    (when (or refresh (null my/font-families-cache))
+      (setq my/font-families-cache
+            (ignore-errors
+              (delete-dups
+               (mapcar #'string-trim
+                       (seq-mapcat (lambda (line) (split-string line ","))
+                                   (process-lines "fc-list" ":" "family")))))))
+    my/font-families-cache)
+
+  (defun my/font-available-p (family)
+    "Return non-nil if FAMILY is installed.
+Asks the font backend when there is a graphical frame to ask, and
+fc-list otherwise: without a display every font query answers nil, so
+the backend would report each and every family as missing."
+    (and (stringp family)
+         (if (display-graphic-p)
+             (and (find-font (font-spec :family family)) t)
+           (and (member family (my/font-families)) t))))
+
+  (defun my/resolve-font (candidates)
+    "Return the first installed family in CANDIDATES.
+When none of them is installed, returns the last one, which is a
+fontconfig generic alias -- so callers always get a usable string."
+    (or (seq-find #'my/font-available-p candidates)
+        (car (last candidates))))
+
   (defun refresh-global-font-size ()
     (interactive)
     ;; Construct font string: "FontName-Size"
     (let ((font-string (format "%s-%d" default-font-mono font-size)))
-      ;; Update all existing frames
-      (dolist (frame (frame-list))
-        (set-frame-font font-string nil (list frame)))
-      ;; Update default for new frames
-      (add-to-list 'default-frame-alist (cons 'font font-string))
+      ;; Update all existing frames.  Guarded because `set-frame-font'
+      ;; signals "Font not available" for a family that isn't installed,
+      ;; and uncaught during startup that aborts the rest of init.  Skip
+      ;; terminal frames, which have no font to set.
+      (when (condition-case err
+                (progn (dolist (frame (frame-list))
+                         (when (display-graphic-p frame)
+                           (set-frame-font font-string nil (list frame))))
+                       t)
+              (error (message "Could not set font %s: %s"
+                              font-string (error-message-string err))
+                     nil))
+        ;; Update default for new frames -- but only with a font that just
+        ;; applied cleanly, since `make-frame' signals on one it cannot
+        ;; open and would then fail for every new frame.  `setf' rather
+        ;; than `add-to-list' so this replaces the previous font instead of
+        ;; leaving a stale duplicate `font' key behind, which `make-frame'
+        ;; would still try to honour.
+        (setf (alist-get 'font default-frame-alist) font-string))
       ;; Force redisplay to fix line numbers and other rendering
       (redraw-display)))
 
@@ -176,10 +236,14 @@
   (defun select-global-font (&optional proportional)
     "Pick a system font via completion and apply it globally.
 Completes over every installed font family (orderless matching
-applies via `completion-styles').  With a prefix argument set the
-proportional/`variable-pitch' font instead of the monospace font."
+applies via `completion-styles').  Families are enumerated with
+fc-list rather than `font-family-list', because the latter only
+reports each face's first (typographic) family name and so hides
+width variants like \"Ioskeley Mono Condensed\".  With a prefix
+argument set the proportional/`variable-pitch' font instead of
+the monospace font."
     (interactive "P")
-    (let* ((families (sort (delete-dups (font-family-list)) #'string<))
+    (let* ((families (seq-sort #'string< (my/font-families t)))
            (font (completing-read
                   (format "%s font: " (if proportional "Proportional" "Monospace"))
                   families nil t)))
@@ -191,6 +255,23 @@ proportional/`variable-pitch' font instead of the monospace font."
         (setq default-font-mono font)
         (refresh-global-font-size)
         (message "Monospace font: %s" font))))
+
+  (defun my/apply-fonts (&rest _)
+    "Point the font variables at installed families, and apply them everywhere."
+    (setq default-font-mono (my/resolve-font my/font-mono-candidates)
+          default-font-propo (my/resolve-font my/font-propo-candidates))
+    (refresh-global-font-size)
+    (set-face-attribute 'variable-pitch t :family default-font-propo)
+    ;; Use a scalable CJK font instead of falling back to bitmap Unifont
+    (let ((cjk (my/resolve-font my/font-cjk-candidates)))
+      (dolist (charset '(han kana hangul cjk-misc bopomofo))
+        (set-fontset-font t charset (font-spec :family cjk)))))
+
+  (defun my/apply-fonts-once ()
+    "Re-apply fonts on the first graphical frame, then stop listening."
+    (when (display-graphic-p)
+      (remove-hook 'server-after-make-frame-hook #'my/apply-fonts-once)
+      (my/apply-fonts)))
 
   (defun search-wikipedia ()
     (interactive)
@@ -356,27 +437,50 @@ proportional/`variable-pitch' font instead of the monospace font."
 * UI
 ** Font
 #+begin_src emacs-lisp
-  (setq default-font-mono "Iosevka Nerd Font Mono"
-        default-font-propo "Iosevka Nerd Font Propo")
-  ;; (setq default-font-mono "RobotoMono Nerd Font"
-  ;; default-font-propo "Roboto")
+  ;; Each list is tried in order and the first family actually installed
+  ;; wins, so a font going missing -- a rebuild that drops a font package,
+  ;; say -- falls through to the next choice instead of erroring out of
+  ;; init.el and leaving the rest of this config unloaded.  Every list ends
+  ;; in a fontconfig generic alias, which always resolves to something.
+  (defvar my/font-mono-candidates
+    '("Berkeley Mono Medium SemiCondensed"
+      "Ioskeley Mono Semi-Condensed"
+      "Iosevka"
+      "DejaVu Sans Mono"
+      "monospace")
+    "Monospace families to try, most preferred first.")
+
+  (defvar my/font-propo-candidates
+    '("Roboto"
+      "Noto Sans"
+      "DejaVu Sans"
+      "sans-serif")
+    "Proportional families to try, most preferred first.")
+
+  (defvar my/font-cjk-candidates
+    '("Noto Sans Mono CJK SC"
+      "Noto Sans CJK SC"
+      "monospace")
+    "CJK families to try, most preferred first.")
+
+  (defvar default-font-mono nil
+    "Monospace family in use, chosen by `my/apply-fonts'.")
+  (defvar default-font-propo nil
+    "Proportional family in use, chosen by `my/apply-fonts'.")
 
   (setq default-font-size 12)
   (unless (boundp 'font-size)
     (setq font-size default-font-size))
 
-  ;; Set font globally for all frames (current and future)
-  (let ((font-string (format "%s-%d" default-font-mono font-size)))
-    (set-frame-font font-string nil t)
-    (add-to-list 'default-frame-alist (cons 'font font-string)))
+  (my/apply-fonts)
 
-  ;; Set variable-pitch font globally
-  (set-face-attribute 'variable-pitch t
-                      :family default-font-propo)
-
-  ;; Use a scalable CJK font instead of falling back to bitmap Unifont
-  (dolist (charset '(han kana hangul cjk-misc bopomofo))
-    (set-fontset-font t charset (font-spec :family "Noto Sans Mono CJK SC")))
+  ;; The daemon gets this far with no display, so the families above were
+  ;; resolved against fc-list rather than the font backend.  Only the
+  ;; backend's opinion decides whether `make-frame' succeeds, and a font it
+  ;; rejects in `default-frame-alist' makes every emacsclient frame fail to
+  ;; open -- so resolve once more against a real display, when there is one.
+  (unless (display-graphic-p)
+    (add-hook 'server-after-make-frame-hook #'my/apply-fonts-once))
 #+end_src
 ** Statusline
 #+begin_src emacs-lisp
