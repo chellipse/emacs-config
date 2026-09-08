@@ -1143,6 +1143,7 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
                  "o g" #'gptel
                  "o c" '("⁺˚⋆ CLAUDE ⁺˚⋆" . my-claude-code)
                  "o a" '("Agent shell (ACP)" . agent-shell-anthropic-start-claude-code)
+                 "o o" '("Agent shell: Codex" . agent-shell-openai-start-codex)
                  "o A" '("Agent shell in dir…" . my/agent-shell-in-directory)
                  "o r" '("Open Ranger!" . ranger)
                  "o m" '("Open a MAGIT!" . magit)
@@ -2718,8 +2719,11 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
   ;; Code, so it reuses your existing `claude' login -- no API key needed as
   ;; long as the subprocess inherits the environment (see below).
   (use-package agent-shell
+    ;; agent-shell only autoloads the openai prefix, not this command. declare
+    ;; it here so the codex binding works before agent-shell loads.
     :commands (agent-shell
                agent-shell-anthropic-start-claude-code
+               agent-shell-openai-start-codex
                my/agent-shell-in-directory
                my/agent-shell-send-command-with-context)
     :init
@@ -2769,9 +2773,42 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
         (agent-shell-new-shell)))
     :config
     (require 'acp)
+
+    ;; set every agent prompt and its regexp through
+    ;; agent-shell-make-agent-config. anchor the regexp at line start because
+    ;; comint-prompt-regexp and paragraph-start use it for navigation;
+    ;; unanchored matches would also catch inline lisp comments.
+    (defun my/agent-shell-force-prompt (config)
+      "set the shared semicolon prompt and regexp in an agent config."
+      (setf (alist-get :shell-prompt config) "; ")
+      (setf (alist-get :shell-prompt-regexp config) "^; ")
+      config)
+    (advice-add 'agent-shell-make-agent-config
+                :filter-return #'my/agent-shell-force-prompt)
+
     ;; Default to the Claude Code agent when running `M-x agent-shell'.
+    ;; build after the advice so this config inherits the shared prompt.
     (setq agent-shell-preferred-agent-config
           (agent-shell-anthropic-make-claude-code-config))
+
+    ;; only insert context automatically when a region is active. the default
+    ;; line source adds the current location whenever a shell opens. use
+    ;; my/agent-shell-send-command-with-context for explicit context.
+    (setq agent-shell-context-sources '(region))
+
+    ;; disabling the header moves model, reasoning level, session mode, context
+    ;; usage and spinner into mode-line-misc-info. doom-modeline renders these
+    ;; through misc-info, as it does my/buffer-stats-string.
+    (setq agent-shell-header-style nil)
+    ;; use a braille spinner for the busy indicator.
+    (setq agent-shell-busy-indicator-frames
+          '("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏"))
+
+    ;; omit the welcome header in new buffers.
+    (setq agent-shell-show-welcome-message nil)
+
+    ;; control restored transcript display only.
+    (setq agent-shell-session-restore-verbosity 'full)
 
     ;; After interrupting, the shell only becomes editable again when the turn
     ;; finalizes (`shell-maker-finish-output'), which agent-shell waits for the
@@ -2791,6 +2828,47 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
     ;;          :api-key (lambda () (getenv "ANTHROPIC_API_KEY"))))
     (setq agent-shell-anthropic-claude-environment
           (agent-shell-make-environment-variables :inherit-env t))
+    ;; inherit the environment so codex-acp finds codex login credentials in
+    ;; ~/.codex/auth.json and executables on the search path.
+    ;; agent-shell-openai-authentication defaults to login for subscription
+    ;; access; api key authentication bills separately.
+    (setq agent-shell-openai-codex-environment
+          (agent-shell-make-environment-variables :inherit-env t))
+    ;; maintain the codex model picker locally instead of rebuilding codex-acp.
+    ;; agent-shell--get-available-models prefers the model session config
+    ;; option, then falls back to the list advertised during session creation.
+    ;; claude uses the config option, populated from the availableModels field
+    ;; in ~/.claude/settings.json. codex-acp uses its compiled list; version
+    ;; 0.13.0 stops at gpt-5.5. session/set_model accepts unknown ids, with
+    ;; backend validation deferred until a prompt. set this list to nil to use
+    ;; the advertised models.
+    (defcustom my/agent-shell-codex-models
+      '(("GPT-6 Astra"      . "gpt-6-astra")
+        ("GPT-5.6"          . "gpt-5.6")
+        ("GPT-5.5 (xhigh)"  . "gpt-5.5/xhigh")
+        ("GPT-5.5 (high)"   . "gpt-5.5/high")
+        ("GPT-5.5 (medium)" . "gpt-5.5/medium")
+        ("GPT-5.3 Codex"    . "gpt-5.3-codex/high"))
+      "models offered by the codex shell picker, newest first."
+      :type '(alist :key-type string :value-type string)
+      :group 'agent-shell)
+
+    (defun my/agent-shell--codex-model-list (orig-fun state)
+      "use my/agent-shell-codex-models for codex; otherwise call the original."
+      (if (and my/agent-shell-codex-models
+               (eq (map-nested-elt state '(:agent-config :identifier)) 'codex))
+          (mapcar (lambda (entry)
+                    (list (cons :model-id (cdr entry))
+                          (cons :name (car entry))))
+                  my/agent-shell-codex-models)
+        (funcall orig-fun state)))
+    (advice-add 'agent-shell--get-available-models
+                :around #'my/agent-shell--codex-model-list)
+
+    ;; agent-shell sends the default through session/set_model during bootstrap
+    ;; without checking the advertised list. use an id from the local list
+    ;; above.
+    (setq agent-shell-openai-default-model-id "gpt-6-astra")
     ;; Ergonomic `I' (like vterm): jump to the bottom / end of the prompt
     ;; line, then enter insert state -- ready to type a new prompt.
     (map! :n agent-shell-mode-map
