@@ -3038,6 +3038,9 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
 
     :config
     (evil-org-set-key-theme)
+    ;; restore shift-j to evil-join. the shift theme binds it to org-shiftdown
+    ;; for heading priorities and list movement; shift-down remains available.
+    (evil-define-key 'normal 'evil-org-mode (kbd "J") #'evil-join)
     (require 'evil-org-agenda)
     (evil-org-agenda-set-keys))
 #+end_src
