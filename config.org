@@ -1917,6 +1917,18 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
     (lsp-ui-doc-side 'right)
     (lsp-ui-doc-position 'at-point)
     (lsp-ui-doc-enable)
+    :init
+    (defun my/lsp-doc-glance-safe ()
+      "Show the LSP doc popup at point, or do nothing if there is none."
+      (interactive)
+      (cond
+       ((not (bound-and-true-p lsp-mode))
+        (message "No language server in this buffer"))
+       ((not (lsp-workspaces))
+        (message "Language server not ready yet"))
+       (t (lsp-ui-doc-glance))))
+    (map! :n prog-mode-map
+          "." #'my/lsp-doc-glance-safe)
     :config
     (set-face-attribute 'lsp-ui-doc-background nil
                         :background nil)
@@ -1930,7 +1942,7 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
           "g i" #'lsp-goto-implementation
           "g d" #'evil-goto-definition
           "," #'lsp-ui-doc-toggle
-          "." #'lsp-ui-doc-glance))
+          "." #'my/lsp-doc-glance-safe))
 #+end_src
 ** =ansi-color=
 #+begin_src emacs-lisp
