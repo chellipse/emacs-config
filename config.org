@@ -1142,9 +1142,9 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
                  "o e" '("Open Eshell!" . eshell)
                  "o g" #'gptel
                  "o c" '("⁺˚⋆ CLAUDE ⁺˚⋆" . my-claude-code)
-                 "o a" '("Agent shell (ACP)" . agent-shell-anthropic-start-claude-code)
-                 "o o" '("Agent shell: Codex" . agent-shell-openai-start-codex)
-                 "o A" '("Agent shell in dir…" . my/agent-shell-in-directory)
+                 "o a" '("Claude in directory" . my/agent-shell-claude-in-directory)
+                 "o o" '("Codex in directory" . my/agent-shell-codex-in-directory)
+                 "o A" nil
                  "o r" '("Open Ranger!" . ranger)
                  "o m" '("Open a MAGIT!" . magit)
                  "o t" '("Open Treemacs!" . treemacs)
@@ -2728,12 +2728,11 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
   ;; Code, so it reuses your existing `claude' login -- no API key needed as
   ;; long as the subprocess inherits the environment (see below).
   (use-package agent-shell
-    ;; agent-shell only autoloads the openai prefix, not this command. declare
-    ;; it here so the codex binding works before agent-shell loads.
     :commands (agent-shell
                agent-shell-anthropic-start-claude-code
                agent-shell-openai-start-codex
-               my/agent-shell-in-directory
+               my/agent-shell-claude-in-directory
+               my/agent-shell-codex-in-directory
                my/agent-shell-send-command-with-context)
     :init
     (defvar my/agent-shell-command-history nil
@@ -2770,16 +2769,24 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
         (when busy
           (message "Agent busy -- left in input, submit (RET) when ready"))))
 
-    (defun my/agent-shell-in-directory (dir)
-      "Start a new agent shell rooted at DIR (resolved to its project root).
-    Like `claude-code-start-in-directory' -- lets you launch an agent in a
-    repo you don't currently have a buffer open in. `agent-shell-cwd'
-    resolves the project root from `default-directory', so pointing at any
-    path inside the repo lands the shell at the repo root."
-      (interactive "DAgent shell in directory: ")
+    (defun my/agent-shell-in-directory (dir start-function)
+      "start an agent in the directory, resolved to its project root."
       (require 'agent-shell)
       (let ((default-directory (file-name-as-directory (expand-file-name dir))))
-        (agent-shell-new-shell)))
+        (funcall start-function)))
+
+    (defun my/agent-shell-claude-in-directory (dir)
+      "prompt for a directory and start a new claude shell."
+      (interactive "DClaude in directory: ")
+      (require 'agent-shell-anthropic)
+      (my/agent-shell-in-directory
+       dir #'agent-shell-anthropic-start-claude-code))
+
+    (defun my/agent-shell-codex-in-directory (dir)
+      "prompt for a directory and start a new codex shell."
+      (interactive "DCodex in directory: ")
+      (require 'agent-shell-openai)
+      (my/agent-shell-in-directory dir #'agent-shell-openai-start-codex))
     :config
     (require 'acp)
 
