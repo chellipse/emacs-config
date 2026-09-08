@@ -3024,6 +3024,59 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
                          ;; ("")
                          )))
 #+end_src
+** =mu4e=
+#+begin_src emacs-lisp
+  ;; home/configs/mail.nix configures bridge access, mbsync, msmtp and mu.
+  ;; mu4e handles indexing after manual sync. echo/default.nix adds mu4e
+  ;; to the emacs load-path.
+  (use-package mu4e
+    :commands (mu4e mu4e-compose-new)
+    :config
+    (setq mu4e-attachment-dir (expand-file-name "~/Downloads")
+
+          ;; refresh manually to sync mail and update the index.
+          mu4e-get-mail-command "mbsync proton"
+          mu4e-update-interval nil
+          mu4e-index-update-error-warning t
+
+          ;; rename files on flag changes to prevent mbsync uid collisions.
+          mu4e-change-filenames-when-moving t
+          mu4e-headers-auto-update t
+          mu4e-confirm-quit nil
+          mu4e-compose-format-flowed t
+
+          ;; paths are relative to the mu index root, ~/Mail.
+          mu4e-drafts-folder "/proton/Drafts"
+          mu4e-sent-folder   "/proton/Sent"
+          mu4e-trash-folder  "/proton/Trash"
+          mu4e-refile-folder "/proton/Archive"
+
+          ;; proton stores sent mail server-side and mbsync retrieves it. avoid
+          ;; saving a duplicate local copy.
+          mu4e-sent-messages-behavior 'delete
+
+          mu4e-notification-support nil
+
+          ;; send through bridge smtp with msmtp, which reads the password from
+          ;; pass. emacs does not handle the credential.
+          message-send-mail-function #'message-send-mail-with-sendmail
+          sendmail-program "msmtp"
+          message-sendmail-f-is-evil t
+          message-sendmail-extra-arguments '("--read-envelope-from")
+
+          user-mail-address "pumpkinbiscuit@protonmail.com"
+          user-full-name "Chell Laszlo")
+
+    (setq mu4e-bookmarks
+          '((:name "Unread"      :query "flag:unread AND NOT flag:trashed" :key ?u)
+            (:name "Inbox"       :query "maildir:/proton/INBOX"            :key ?i)
+            (:name "Today"       :query "date:today..now"                  :key ?t)
+            (:name "Last 7 days" :query "date:7d..now"                     :key ?w)
+            (:name "Flagged"     :query "flag:flagged"                     :key ?f))))
+
+  (map-leader! :n '(global evil-mode-map) "SPC"
+               "o M" '("Open Mail!" . mu4e))
+#+end_src
 ** =tramp=
 #+begin_src emacs-lisp
   (setq tramp-default-method "ssh"
