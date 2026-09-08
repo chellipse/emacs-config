@@ -17,12 +17,17 @@
 
 (set 'auto-mode-case-fold nil)
 
-(let ((old-file-name-handler-alist file-name-handler-alist))
-  (set 'file-name-handler-alist (list (rassq 'jka-compr-handler file-name-handler-alist)))
-  (add-hook 'after-init-hook
-            #'(lambda () (set 'file-name-handler-alist
-                              (delete-dups (append file-name-handler-alist
-                                                   old-file-name-handler-alist))))))
+(unless after-init-time
+  (let ((old-file-name-handler-alist file-name-handler-alist))
+    ;; preserve age-file-handler so write-region cannot bypass encryption.
+    ;; config.org also restores the handler before saving age buffers.
+    (set 'file-name-handler-alist
+         (seq-filter (lambda (e) (memq (cdr e) '(jka-compr-handler age-file-handler)))
+                     file-name-handler-alist))
+    (add-hook 'after-init-hook
+              #'(lambda () (set 'file-name-handler-alist
+                                (delete-dups (append file-name-handler-alist
+                                                     old-file-name-handler-alist)))))))
 
 (set 'native-comp-speed 3)
 (set 'native-comp-async-report-warnings-errors nil)
@@ -32,16 +37,17 @@
 ;; Need to load the newer non-builtin version of transient before we change load order
 ;; else "rg" will complain about new transient endpoints being undefined
 (require 'transient)
-(let* ((emacs-lisp-path (seq-find (lambda (s) (string-suffix-p "lisp/emacs-lisp" s)) load-path))
-       (url-path (seq-find (lambda (s) (string-suffix-p "lisp/url" s)) load-path))
-       (lisp-path (directory-file-name (file-name-directory emacs-lisp-path)))
-       (old-load-path (mapcar #'copy-sequence load-path)))
-  (when emacs-lisp-path
-    (delete emacs-lisp-path load-path)
-    (delete lisp-path load-path)
-    (delete url-path load-path)
-    (set 'load-path (append (list emacs-lisp-path lisp-path url-path) load-path))
-    (add-hook 'after-init-hook #'(lambda ()(set 'load-path old-load-path)))))
+(unless after-init-time
+  (let* ((emacs-lisp-path (seq-find (lambda (s) (string-suffix-p "lisp/emacs-lisp" s)) load-path))
+         (url-path (seq-find (lambda (s) (string-suffix-p "lisp/url" s)) load-path))
+         (lisp-path (directory-file-name (file-name-directory emacs-lisp-path)))
+         (old-load-path (mapcar #'copy-sequence load-path)))
+    (when emacs-lisp-path
+      (delete emacs-lisp-path load-path)
+      (delete lisp-path load-path)
+      (delete url-path load-path)
+      (set 'load-path (append (list emacs-lisp-path lisp-path url-path) load-path))
+      (add-hook 'after-init-hook #'(lambda ()(set 'load-path old-load-path))))))
 
 (when (boundp 'pgtk-wait-for-event-timeout)
   (set 'pgtk-wait-for-event-timeout 0.0001))
