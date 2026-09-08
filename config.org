@@ -1365,6 +1365,15 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
     ;; Don't warn about undo history conflicts between instances
     (setq undo-tree-enable-undo-in-region nil)
 
+    ;; undo-tree defaults to 80, 120 and 360 mib limits, roughly 500 times the
+    ;; emacs defaults. saving serializes the entire tree through
+    ;; write-file-functions. external edits with auto-revert can add a
+    ;; whole-buffer changeset per revert; config.org reached 610 mb of history
+    ;; and 8.5 seconds per save. lower the limits to reduce history writes.
+    (setq undo-tree-limit        (* 8 1024 1024)
+          undo-tree-strong-limit (* 12 1024 1024)
+          undo-tree-outer-limit  (* 24 1024 1024))
+
     ;; undo-tree writes inserted and deleted text under var/undo-tree-hist/
     ;; without encryption handlers. block history saves and loads for encrypted
     ;; buffers. checking the handler in both functions avoids dependence on hook
