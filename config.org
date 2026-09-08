@@ -929,7 +929,7 @@ the monospace font."
 #+end_src
 ** Whitespace
 #+begin_src emacs-lisp
-  (setq whitespace-style '(face trailing)
+  (setq whitespace-style '(face trailing tabs tab-mark spaces space-mark)
         whitespace-global-modes '(not shell-mode
                                       help-mode
                                       vterm-mode
@@ -938,7 +938,53 @@ the monospace font."
                                       ibuffer-mode
                                       dired-mode
                                       occur-mode))
-  ;; (global-whitespace-mode 1)
+
+  (with-eval-after-load 'whitespace
+    ;; Never visualize whitespace in agent-shell buffers
+    (add-function :before-while whitespace-enable-predicate
+                  (lambda ()
+                    (not (string-prefix-p "agent-shell"
+                                          (symbol-name major-mode)))))
+    ;; Make the space/tab markers very faint
+    (dolist (face '(whitespace-space whitespace-tab))
+      (set-face-attribute face nil
+                          :background 'unspecified
+                          :inherit nil
+                          :foreground "#182E18"))
+
+    ;; whitespace highlights spaces/tabs with an *override* (`t') face, which
+    ;; replaces the char's whole face -- so our background-less marker face
+    ;; falls back to the default background and punches holes wherever the
+    ;; text sits on a non-default background (e.g. an org src block's
+    ;; `org-block').  Flip just those markers to `prepend' so the faint
+    ;; foreground layers on while the underlying background shows through.
+    ;; `trailing'/`indentation' keep their override -- their loud background
+    ;; is the whole point.
+    (require 'cl-lib)
+    (defun my/whitespace--soften-marker-bg (keywords)
+      "Return font-lock KEYWORDS with the space/tab/hspace markers switched
+from override (`t') to `prepend'."
+      (mapcar (lambda (kw)
+                (if (and (consp kw) (= (length kw) 4) (eq (nth 3 kw) t)
+                         (memq (nth 2 kw)
+                               '(whitespace-space whitespace-hspace whitespace-tab)))
+                    (list (nth 0 kw) (nth 1 kw) (nth 2 kw) 'prepend)
+                  kw))
+              keywords))
+    (define-advice whitespace-color-on (:around (orig) my/soften-marker-bg)
+      "Layer the space/tab markers over the buffer background instead of
+replacing it.  Intercepts the single `font-lock-add-keywords' call so the
+buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
+      (cl-letf* ((real (symbol-function 'font-lock-add-keywords))
+                 ((symbol-function 'font-lock-add-keywords)
+                  (lambda (mode kws &optional how)
+                    (let ((soft (my/whitespace--soften-marker-bg kws)))
+                      (when (local-variable-p 'whitespace-font-lock-keywords)
+                        (setq whitespace-font-lock-keywords soft))
+                      (funcall real mode soft how)))))
+        (funcall orig))))
+
+  (global-whitespace-mode 1)
 #+end_src
 ** =hl-todo=
 #+begin_src emacs-lisp
