@@ -3194,12 +3194,12 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
 ** GC
 #+begin_src emacs-lisp
   ;; we need to handle multi-frame emacs sessions, where switching frames from
-  ;; emacs -> emacs is NOT a valid time to gc. however, when switching in this way,
-  ;; there is a small period of time inbetween receiving notice of defocusing the
-  ;; first window, and focusing the second window, where no windows are focused.
-  ;;
-  ;; thus, after a focus change we must have a slight delay before checking if any
-  ;; emacs frames are focused, then gc only if none are.
+  ;; emacs -> emacs is NOT a valid time to gc. however, when switching in this
+  ;; way, there is a small period of time inbetween receiving notice of
+  ;; defocusing the first window, and focusing the second window, where no
+  ;; windows are focused.  thus, after a focus change we must have a slight
+  ;; delay before checking if any emacs frames are focused, then gc only if none
+  ;; are.
   (defun gc-unless-focused ()
     "Will call garbage-collect if there are no focused emacs frames"
     (interactive)
@@ -3211,4 +3211,20 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
   (add-function :after after-focus-change-function
                 (lambda () (run-with-timer 0.1 nil #'gc-unless-focused)))
 
+  ;; defer automatic gc during minibuffer input to avoid blocking completion
+  (defvar my/gc--saved-threshold gc-cons-threshold
+    "gc-cons-threshold in effect outside the minibuffer.")
+
+  (defun my/gc-defer-in-minibuffer ()
+    (when (= (minibuffer-depth) 1)
+      (setq my/gc--saved-threshold gc-cons-threshold))
+    (setq gc-cons-threshold most-positive-fixnum))
+
+  (defun my/gc-restore-after-minibuffer ()
+    ;; exit hooks run before the minibuffer closes; depth one is outermost.
+    (when (= (minibuffer-depth) 1)
+      (setq gc-cons-threshold my/gc--saved-threshold)))
+
+  (add-hook 'minibuffer-setup-hook #'my/gc-defer-in-minibuffer)
+  (add-hook 'minibuffer-exit-hook #'my/gc-restore-after-minibuffer)
 #+end_src
