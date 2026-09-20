@@ -197,8 +197,14 @@ fontconfig generic alias -- so callers always get a usable string."
 
   (defun refresh-global-font-size ()
     (interactive)
-    ;; Construct font string: "FontName-Size"
-    (let ((font-string (format "%s-%d" default-font-mono font-size)))
+    ;; Construct a fontconfig pattern: "FontName-Size[:attr=val...]".
+    ;; The suffix (see `my/font-mono-pattern-attrs') lets a family pick a
+    ;; non-default weight or width while faces still inherit the family
+    ;; itself, so bold/italic faces resolve to that family's real cuts.
+    (let ((font-string (format "%s-%d%s" default-font-mono font-size
+                               (or (cdr (assoc default-font-mono
+                                               my/font-mono-pattern-attrs))
+                                   ""))))
       ;; Update all existing frames.  Guarded because `set-frame-font'
       ;; signals "Font not available" for a family that isn't installed,
       ;; and uncaught during startup that aborts the rest of init.  Skip
@@ -443,12 +449,24 @@ the monospace font."
   ;; init.el and leaving the rest of this config unloaded.  Every list ends
   ;; in a fontconfig generic alias, which always resolves to something.
   (defvar my/font-mono-candidates
-    '("Berkeley Mono Medium SemiCondensed"
+    '("Berkeley Mono"
       "Ioskeley Mono Semi-Condensed"
       "Iosevka"
       "DejaVu Sans Mono"
       "monospace")
     "Monospace families to try, most preferred first.")
+
+  ;; USGC flattens every weight/width cut of Berkeley Mono into its own
+  ;; single-face family ("Berkeley Mono Medium SemiCondensed", ...), and a
+  ;; single-face family can never satisfy a bold or italic request with a
+  ;; real font -- fontconfig answers with synthetic embolden/shear of the
+  ;; one face instead.  So use the umbrella family above and express the
+  ;; preferred cut as pattern attributes here: faces that want bold or
+  ;; oblique then resolve to the genuine cuts along those axes.
+  (defvar my/font-mono-pattern-attrs
+    '(("Berkeley Mono" . ":weight=medium:width=semicondensed"))
+    "Fontconfig pattern suffix per monospace family, applied when that
+family is the one `refresh-global-font-size' sets.")
 
   (defvar my/font-propo-candidates
     '("Roboto"
