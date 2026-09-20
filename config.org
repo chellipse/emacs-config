@@ -1287,27 +1287,43 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
 
     ;; normal scroll commands don't scroll a consistent number of lines in word
     ;; wrapped buffers. this alternative has more desireable behavior
+    (defun my/scroll--rows-between (from to win limit)
+      "Count screen rows from FROM to TO in WIN, giving up after LIMIT rows.
+    Only `goto-char' and `vertical-motion' are used, and both clamp
+    out-of-range positions rather than signalling.  `count-screen-lines' does
+    not: it hands its arguments to `narrow-to-region', so a position that has
+    gone stale -- agent-shell rewrites its transcript underneath us as output
+    streams -- raises \"Args out of range\" and aborts the scroll.  LIMIT keeps
+    this bounded by the window height, so it stays cheap."
+      (save-excursion
+        (goto-char from)
+        (let ((rows 0))
+          (while (and (< rows limit)
+                      (> (vertical-motion 1 win) 0)
+                      (<= (point) to))
+            (setq rows (1+ rows)))
+          rows)))
+
     (defun my/scroll-screen-lines (n)
       "Scroll the selected window by N screen lines; negative N scrolls back.
     Exact in both directions, including word-wrapped buffers, so that N down
     and N back up returns to the same row."
       (let* ((win (selected-window))
-             (start (window-start win))
+             (start (max (point-min) (min (point-max) (window-start win))))
              ;; Point's row in the window, clamped: if point sits below the
              ;; window (agent-shell parks it at the prompt), restoring its row
              ;; verbatim would push it off-screen and redisplay would undo the
              ;; scroll to bring it back.
-             (row (max 0 (min (1- (window-body-height win))
-                              (if (>= (point) start)
-                                  (count-screen-lines start (point) nil win)
-                                0))))
+             (row (my/scroll--rows-between
+                   start (point) win (1- (window-body-height win))))
              (new-start
               (if (> n 0)
                   (save-excursion (goto-char start) (vertical-motion n win) (point))
                 (save-excursion
                   (goto-char start)
                   (vertical-motion (* 2 n) win)   ; deliberate overshoot
-                  (let ((over (- (count-screen-lines (point) start nil win) (- n))))
+                  (let ((over (- (my/scroll--rows-between (point) start win (* 2 (- n)))
+                                 (- n))))
                     (when (> over 0) (vertical-motion over win))
                     (point))))))
         (cond ((and (> n 0) (= new-start start)) (signal 'end-of-buffer nil))
