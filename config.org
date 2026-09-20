@@ -1106,6 +1106,18 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     (with-eval-after-load 'magit
       (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh)))
 #+end_src
+** =ediff=
+#+begin_src emacs-lisp
+  ;; The default setup function picks the multiframe layout on a graphical
+  ;; display -- the control panel in its own little popup frame -- and the
+  ;; plain layout on a text terminal, where everything, control panel
+  ;; included, lives as windows in the current frame. Always use the plain
+  ;; layout; `ediff-toggle-multiframe' can still flip it for one session.
+  (use-package ediff
+    :defer t
+    :custom
+    (ediff-window-setup-function #'ediff-setup-windows-plain))
+#+end_src
 ** =rainbow-mode=
 #+begin_src emacs-lisp
   (use-package rainbow-mode
