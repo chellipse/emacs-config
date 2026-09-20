@@ -1073,16 +1073,12 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     ;; (defvar title-list nil)
     ;; (setq dashboard-banner-logo-title
     ;;       (nth (random (length title-list)) title-list))
-    ;; (setq dashboard-startup-banner
-    ;;       (let* ((img-file (expand-file-name "~/Sync/emacs.jpg"))
-    ;;              (txt-file (expand-file-name "banners/looking.txt" user-emacs-directory))
-    ;;              (img-exists (file-exists-p img-file))
-    ;;              (txt-exists (file-exists-p txt-file)))
-    ;;         (cond
-    ;;          ((and img-exists txt-exists) (cons img-file txt-file))
-    ;;          (img-exists (cons img-file 3))
-    ;;          (txt-exists (cons 'logo txt-file))
-    ;;          (t (cons 'logo 3)))))
+    (setq dashboard-startup-banner
+          (expand-file-name "banners/avatar-test.png" user-emacs-directory)
+          dashboard-image-banner-max-width 256
+          dashboard-image-banner-max-height 256
+          ;; Let transparent corners respect the frame's background opacity.
+          dashboard-image-extra-props '(:mask heuristic))
 
     (setq dashboard-items '((recents   . 10)
                             ;; (bookmarks . 5)
