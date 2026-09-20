@@ -964,6 +964,20 @@ family is the one `refresh-global-font-size' sets.")
         (with-current-buffer buf (rename-buffer "*scratch*")))))
   (add-hook 'emacs-startup-hook #'my/scratch-file-backed)
 #+end_src
+** Frame Title
+ActivityWatch categorizes windows by title, so include the projectile project
+name: file buffers become attributable per-project the way Claude Agent
+buffers and terminals already are.
+#+begin_src emacs-lisp
+  (setq frame-title-format
+        '("%b"
+          (:eval (let ((p (and (fboundp 'projectile-project-name)
+                               (projectile-project-name))))
+                   ;; projectile returns "-" outside any project
+                   (when (and p (not (string= p "-")))
+                     (concat " — " p))))
+          " — Emacs"))
+#+end_src
 ** Line Numbers
 #+begin_src emacs-lisp
   (setq display-line-numbers-type t)
