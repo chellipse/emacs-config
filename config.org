@@ -1259,8 +1259,27 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
       :move-point nil
       (interactive "<r>")
       (comment-or-uncomment-region beg end))
+    ;; `>' / `<' are operators, so in visual state they drop the selection
+    ;; after one shift and indenting a block twice means `gv' (or reselecting)
+    ;; every time. Shift, then restore the selection so the key repeats --
+    ;; helix style. `evil-visual-restore' works from markers, so the restored
+    ;; region follows the inserted/removed indentation; counts still apply.
+    (defun my/evil-shift-right-keep-selection ()
+      "Shift the visual selection right and keep it selected."
+      (interactive)
+      (call-interactively #'evil-shift-right)
+      (evil-normal-state)
+      (evil-visual-restore))
+    (defun my/evil-shift-left-keep-selection ()
+      "Shift the visual selection left and keep it selected."
+      (interactive)
+      (call-interactively #'evil-shift-left)
+      (evil-normal-state)
+      (evil-visual-restore))
     (map! :v '(global evil-mode-map)
           "RET" (cmd! (claude-code-send-region '(4)))
+          ">" #'my/evil-shift-right-keep-selection
+          "<" #'my/evil-shift-left-keep-selection
           "t" #'my/evil-comment-lines)
     (map! :ni '(global evil-mode-map)
           "C-f" #'other-window
