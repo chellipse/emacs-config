@@ -1242,10 +1242,26 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
                  "o" #'consult-org-heading
                  "d" (cmd! (funcall dynamic-diagnostic-fn)))
     (map! :nv '(global evil-mode-map)
-          "g e" #'evil-goto-line
+          "g e" #'evil-goto-line)
+    ;; `comment-line' toggles the current line and steps down, so `t t t'
+    ;; walks a block -- keep it for normal state only. In visual state it
+    ;; reads the Emacs region, which evil expands to the selection before
+    ;; every non-evil command; a linewise (or `v$') selection therefore ends
+    ;; on the newline, point lands at the start of the line BELOW, and
+    ;; `comment-line' extends to that line's end and comments it too. The
+    ;; operator below takes evil's own range instead, and its line type
+    ;; makes any selection whole-line, matching `comment-line'.
+    (map! :n '(global evil-mode-map)
           "t" #'comment-line)
+    (evil-define-operator my/evil-comment-lines (beg end)
+      "Comment or uncomment every line touched by the selection or motion."
+      :type line
+      :move-point nil
+      (interactive "<r>")
+      (comment-or-uncomment-region beg end))
     (map! :v '(global evil-mode-map)
-          "RET" (cmd! (claude-code-send-region '(4))))
+          "RET" (cmd! (claude-code-send-region '(4)))
+          "t" #'my/evil-comment-lines)
     (map! :ni '(global evil-mode-map)
           "C-f" #'other-window
           "C-<escape>" #'claude-code-send-escape)
