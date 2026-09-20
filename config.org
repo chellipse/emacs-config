@@ -285,10 +285,17 @@ the monospace font."
       (w3m (concat "https://en.wikipedia.org/wiki/Special:Search?search=" search))))
 
   (defun copy-file-path ()
-    "Copy the current buffer's file path to the clipboard."
+    "Copy the current buffer's file path and line number to the clipboard.
+The path is abbreviated with `~' when it lives under the home directory,
+and the result is formatted as PATH:LINE so it can be pasted straight into
+a shell, a compiler error list, or an agent prompt."
     (interactive)
-    (if-let* ((path (buffer-file-name)))
-        (progn
+    (if-let* ((file (buffer-file-name)))
+        ;; `line-number-at-pos' with ABSOLUTE ignores narrowing, so a
+        ;; narrowed buffer still reports the real line in the file.
+        (let ((path (format "%s:%d"
+                            (abbreviate-file-name file)
+                            (line-number-at-pos nil t))))
           (kill-new path)
           (message "Copied: %s" path))
       (message "Buffer is not visiting a file")))
