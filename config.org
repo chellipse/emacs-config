@@ -3031,15 +3031,17 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
     ;; agent-shell--get-available-models prefers the model session config
     ;; option, then falls back to the list advertised during session creation.
     ;; claude uses the config option, populated from the availableModels field
-    ;; in ~/.claude/settings.json. codex advertises its list at session
-    ;; creation, and since the llm-agents codex-acp (agentclientprotocol,
+    ;; in ~/.claude/settings.json. the llm-agents codex-acp (agentclientprotocol,
     ;; 1.10.0) drives the real codex binary rather than a statically linked
-    ;; core, that list already matches what `codex' offers interactively --
-    ;; gpt-6-astra and the gpt-5.6-* family, each x low|medium|high|xhigh|max|
-    ;; ultra, ids written as gpt-6-astra[xhigh]. nothing to maintain by hand,
-    ;; so this stays nil and the advice below falls through. set it to an
-    ;; alist of (LABEL . MODEL-ID) to curate the picker instead -- the full
-    ;; advertised list is 30-odd entries.
+    ;; core, and publishes a `model' config option at session creation that
+    ;; matches what `codex' offers interactively -- bare ids (gpt-6-astra,
+    ;; gpt-5.6-sol, ...) with reasoning effort split out into a separate
+    ;; `reasoning_effort' option (low|medium|high|xhigh|max|ultra). the older
+    ;; flat models list still carries gpt-6-astra[xhigh]-style ids, but
+    ;; agent-shell prefers the config option whenever one exists, so those
+    ;; bracketed ids are never accepted. nothing to maintain by hand, so this
+    ;; stays nil and the advice below falls through. set it to an alist of
+    ;; (LABEL . MODEL-ID) to curate the picker instead.
     ;;
     ;; (nixpkgs' codex-acp is the abandoned zed-industries fork, which links
     ;; codex-core at build time; every current model 400s against it with
@@ -3063,10 +3065,14 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
     (advice-add 'agent-shell--get-available-models
                 :around #'my/agent-shell--codex-model-list)
 
-    ;; agent-shell sends the default through session/set_model during bootstrap
-    ;; without checking the advertised list. use an id from the local list
-    ;; above.
-    (setq agent-shell-openai-default-model-id "gpt-6-astra[xhigh]")
+    ;; agent-shell sets the default during bootstrap via session/set_config_option
+    ;; on the `model' option, which only accepts the bare ids above -- a
+    ;; bracketed effort suffix gets -32602 Invalid params, and since the
+    ;; failure never flags the model as set, every prompt retries and fails
+    ;; the same way. effort has no agent-shell default; it comes from
+    ;; model_reasoning_effort in ~/.codex/config.toml (xhigh) and can be
+    ;; changed per session with `agent-shell-set-session-config-option'.
+    (setq agent-shell-openai-default-model-id "gpt-6-astra")
     ;; Ergonomic `I' (like vterm): jump to the bottom / end of the prompt
     ;; line, then enter insert state -- ready to type a new prompt.
     (map! :n agent-shell-mode-map
