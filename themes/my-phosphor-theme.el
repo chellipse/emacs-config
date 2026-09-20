@@ -167,6 +167,13 @@ determine the exact padding."
              `(:line-width ,-modeline-pad :color ,modeline-bg-inactive)))
    (mode-line-emphasis :foreground highlight)
    (mode-line-highlight :background orange :foreground bg :weight 'bold)
+   ;;;; agent-shell
+   ;; Zebra rows default to inheriting `lazy-highlight', whose bright teal
+   ;; background (darkened magenta) leaves `fg' at ~2:1 contrast and forces
+   ;; every cell to plain green. A dim ramp shade keeps text near 8:1 and
+   ;; `:foreground unspecified' lets bold/code/link colors show through.
+   (agent-shell-markdown-table-zebra
+    :background base3 :foreground 'unspecified :extend t)
    ;;;; centaur-tabs
    (centaur-tabs-active-bar-face :background magenta)
    (centaur-tabs-modified-marker-selected
