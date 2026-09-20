@@ -1967,6 +1967,21 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
   ;; word motions (w/e/b, ciw, ...) span whole identifiers like foo_bar
   (add-hook! (c-mode-hook c-ts-mode-hook)
              (lambda () (modify-syntax-entry ?_ "w")))
+
+  ;; clangd advertises newline as an on-type-formatting trigger and lsp-mode
+  ;; hooks that into every RET. clangd formats with clang-format, which
+  ;; ignores the tabs preference lsp-mode sends and, in a tree without a
+  ;; .clang-format (lustre), falls back to LLVM style: so after cc-mode has
+  ;; already indented a new line correctly, the async reply rewrites it (and
+  ;; the line above) with spaces and leaves point at column 0.
+  ;; `lsp-enable-indentation' routes `indent-region' (evil `=') through the
+  ;; same formatter. lsp reads both when it configures the buffer, which
+  ;; happens on an idle timer after the mode hooks, so buffer-local values
+  ;; set here win. cc-mode / c-ts-mode handle C indentation fine themselves.
+  (add-hook! (c-mode-hook c-ts-mode-hook)
+             (lambda ()
+               (setq-local lsp-enable-on-type-formatting nil
+                           lsp-enable-indentation nil)))
 #+end_src
 ** =typescript-ts-mode=
 #+begin_src emacs-lisp
