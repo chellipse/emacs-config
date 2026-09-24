@@ -3244,11 +3244,18 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
           user-full-name "Chell Laszlo")
 
     (setq mu4e-bookmarks
-          '((:name "Unread"      :query "flag:unread AND NOT flag:trashed" :key ?u)
-            (:name "Inbox"       :query "maildir:/proton/INBOX"            :key ?i)
-            (:name "Today"       :query "date:today..now"                  :key ?t)
-            (:name "Last 7 days" :query "date:7d..now"                     :key ?w)
-            (:name "Flagged"     :query "flag:flagged"                     :key ?f))))
+          '(
+            (:name "Zero"
+                   :query "maildir:/proton/INBOX AND flag:unread" :key ?b)
+            (:name "Inbox"
+                   :query "maildir:/proton/INBOX"                 :key ?i)
+            (:name "Unread"
+                   :query "flag:unread AND NOT flag:trashed"      :key ?u)
+            (:name "Week"
+                   :query "date:7d..now"                          :key ?w)
+            (:name "Letters"
+                   :query "maildir:/proton/Folders/Newsletters"   :key ?n)
+            )))
 
   (map-leader! :n '(global evil-mode-map) "SPC"
                "o M" '("Open Mail!" . mu4e))
