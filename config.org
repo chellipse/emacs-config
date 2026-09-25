@@ -3119,6 +3119,25 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
             (recenter 5)))))
     (advice-add 'shell-maker-submit :after #'my/agent-shell-scroll-prompt-to-top)
 
+    ;; the mode-line segment rescans keymaps (`where-is-internal') and builds
+    ;; menu keymaps on every call, and doom-modeline evaluates it twice per
+    ;; mode-line update -- so every keystroke paid ~6ms plus the garbage.
+    ;; cache it briefly; the busy spinner stays live so it still animates.
+    (defvar-local my/agent-shell--mode-line-cache nil
+      "(TIME . STRING) of the last agent-shell mode-line segment, minus the busy frame.")
+
+    (define-advice agent-shell--mode-line-format (:around (orig) my/cache)
+      "Rebuild agent-shell's mode-line segment at most every half second."
+      (let ((now (float-time)))
+        (unless (and my/agent-shell--mode-line-cache
+                     (< (- now (car my/agent-shell--mode-line-cache)) 0.5))
+          (setq my/agent-shell--mode-line-cache
+                (cons now (cl-letf (((symbol-function 'agent-shell--busy-indicator-frame)
+                                     #'ignore))
+                            (funcall orig)))))
+        (concat (cdr my/agent-shell--mode-line-cache)
+                (agent-shell--busy-indicator-frame))))
+
     ;; Desktop notification (via notify-send) when the agent needs you -- it
     ;; either finished its turn or is asking permission to run a tool. Same
     ;; idea as the claude-code.el notify hook. agent-shell exposes an event
