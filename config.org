@@ -1877,6 +1877,14 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
                "c r" #'compile
                "c c" #'my-recompile)
 #+end_src
+** =emacs-lisp-mode=
+#+begin_src emacs-lisp
+  ;; treat '-' as part of a word in elisp, since elisp uses kebab-case -- makes
+  ;; evil word motions (w/e/b, yiw, ...) span whole names like foo-bar-baz.
+  ;; also covers *scratch* (lisp-interaction-mode) and org src edit buffers.
+  (add-hook 'emacs-lisp-mode-hook
+            (lambda () (modify-syntax-entry ?- "w")))
+#+end_src
 ** =rust-ts-mode=
 #+begin_src emacs-lisp
   (use-package rust-ts-mode
