@@ -2765,7 +2765,57 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
   (use-package w3m
     :commands w3m
     :init
-    (add-hook 'w3m-mode-hook (lambda () (display-line-numbers-mode -1))))
+    (add-hook 'w3m-mode-hook (lambda () (display-line-numbers-mode -1)))
+
+    ;; share one url history with eww (see History). savehist has restored
+    ;; both variables by now, so fold w3m's into eww's once, then make w3m's
+    ;; an alias -- from then on they're literally the same list, so
+    ;; `my/eww-forget-url' works for both and savehist writes it consistently.
+    (when (boundp 'w3m-input-url-history)
+      (setq eww-prompt-history
+            (seq-uniq (append (bound-and-true-p eww-prompt-history)
+                              w3m-input-url-history)))
+      (makunbound 'w3m-input-url-history))
+    (defvaralias 'w3m-input-url-history 'eww-prompt-history)
+    :config
+    ;; record every rendered page, not just typed urls, like `my/eww-record-url'
+    (add-hook 'w3m-display-hook
+              (lambda (url)
+                (unless (string-prefix-p "about:" url)
+                  (add-to-history 'eww-prompt-history url 1000))))
+
+    ;; w3m reads urls with a plain `read-from-minibuffer', so past urls only
+    ;; come back one at a time with M-p. read them like eww instead: vertico
+    ;; lists the shared history, and since the history variable is
+    ;; `eww-prompt-history', `my/eww-prompt-preselect-input' applies too.
+    (define-advice w3m-input-url (:override (&optional prompt initial default
+                                                       quick-start feeling-searchy
+                                                       _no-initial)
+                                            my/completing-read)
+      "Read a url with `completing-read' over the history shared with eww."
+      (w3m-arrived-setup)
+      (let ((default (cond ((null default)
+                            (or (w3m-active-region-or-url-at-point) w3m-home-page))
+                           ((equal default "") nil)
+                           (t default)))
+            (initial (and initial (not (equal initial "")) initial)))
+        (if (and quick-start default (not initial))
+            default
+          (let ((url (completing-read
+                      (format-prompt
+                       (if prompt
+                           (replace-regexp-in-string " *: *\\'" "" prompt)
+                         (if (and feeling-searchy w3m-enable-feeling-searchy)
+                             "URL or keyword"
+                           "URL"))
+                       default)
+                      (seq-uniq eww-prompt-history) nil nil initial
+                      'eww-prompt-history
+                      ;; w3m sometimes passes a symbol (e.g. `popup')
+                      (and (stringp default) default))))
+            (if (equal url "")
+                (or default "")
+              (w3m--get-url-from-bookmark-title url)))))))
 #+end_src
 ** =gptel=
 #+begin_src emacs-lisp
