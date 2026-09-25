@@ -1101,8 +1101,15 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
 ** =writeroom-mode=
 #+begin_src emacs-lisp
   (use-package writeroom-mode
+    :commands (writeroom-mode writeroom-increase-width writeroom-decrease-width)
     :config
-    (setq writeroom-width 120))
+    (setq writeroom-width 120
+          ;; stay a normal window instead of fullscreening the frame
+          writeroom-global-effects (delq 'writeroom-set-fullscreen
+                                         (copy-sequence writeroom-global-effects))
+          ;; writeroom still maximizes its window; put the old splits back when
+          ;; it turns off (point in the buffer is kept)
+          writeroom-restore-window-config t))
 #+end_src
 ** =diff-hl=
 #+begin_src emacs-lisp
