@@ -2020,6 +2020,16 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
   (use-package bash-ts-mode
     :mode "\\.sh\\'")
 #+end_src
+** =nroff-mode=
+#+begin_src emacs-lisp
+  ;; nroff-view renders through man, which shows the page in the other
+  ;; window by default. replace the nroff buffer's window instead.
+  (define-advice nroff-view (:around (orig) my/same-window)
+    ;; load man first so the let binds its special variable, not a lexical.
+    (require 'man)
+    (let ((Man-notify-method 'pushy))
+      (funcall orig)))
+#+end_src
 ** =haskell-ts-mode=
 #+begin_src emacs-lisp
   ;; grammar comes from treesit-grammars.with-all-grammars; the mode package
