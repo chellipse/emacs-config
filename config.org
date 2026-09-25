@@ -1537,7 +1537,13 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
             (minibuffer-depth-indicate-mode)
             (general-setq minibuffer-prompt-properties
                           '(read-only t face minibuffer-prompt intangible t cursor-intangible t))
-            (general-add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)))
+            (general-add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
+            ;; vim-style candidate movement alongside C-n/C-p. this replaces
+            ;; C-j (a duplicate RET) and C-k (kill-line) in vertico only.
+            (general-def
+              :keymaps 'vertico-map
+              "C-j" #'vertico-next
+              "C-k" #'vertico-previous)))
 #+end_src
 ** =vertico-directory=
 #+begin_src emacs-lisp
