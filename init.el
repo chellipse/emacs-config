@@ -99,8 +99,7 @@
 (require 'use-package)
 (require 'org)
 
-;; TODO remove at some point
-(setq use-package-compute-statistics t)
+;; (setq use-package-compute-statistics t)
 
 (org-babel-load-file (expand-file-name "config.org" user-emacs-directory))
 
