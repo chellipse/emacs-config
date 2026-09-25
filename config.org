@@ -1974,8 +1974,12 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
 #+end_src
 ** =c/c++-ts-mode=
 #+begin_src emacs-lisp
-  (add-to-list 'auto-mode-alist '("\\.cppz\\'" . c++-ts-mode))
-  (add-to-list 'auto-mode-alist '("\\.hz\\'" . c++-ts-mode))
+  ;; use the tree-sitter modes wherever emacs would pick cc-mode. c-or-c++
+  ;; covers .h files, guessing the language from the contents.
+  (dolist (remap '((c-mode . c-ts-mode)
+                   (c++-mode . c++-ts-mode)
+                   (c-or-c++-mode . c-or-c++-ts-mode)))
+    (add-to-list 'major-mode-remap-alist remap))
 
   ;; treat '_' as part of a word in C, since C uses snake_case -- makes evil
   ;; word motions (w/e/b, ciw, ...) span whole identifiers like foo_bar
