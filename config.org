@@ -1217,7 +1217,6 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
                  "o a" '("Claude in directory" . my/agent-shell-claude-in-directory)
                  "o o" '("Codex in directory" . my/agent-shell-codex-in-directory)
                  "o A" nil
-                 "o r" '("Open Ranger!" . ranger)
                  "o m" '("Open a MAGIT!" . magit)
                  "o t" '("Open Treemacs!" . treemacs)
                  "o v" '("Open vTerm!" . vterm)
@@ -2633,19 +2632,6 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
     ;; cursor pos and then resets the cursor pos to that after a delay, around w/e
     ;; function runs the rerendering
     (setq eat-term-scrollback-size (* 4 1024 1024)))
-#+end_src
-** =ranger=
-#+begin_src emacs-lisp
-  (use-package ranger
-    :commands ranger
-    :config
-    (setq ranger-show-hidden t
-          ranger-preview-delay 0.1
-          ranger-width-parents 0.16
-          ranger-width-preview 0.5
-          ranger-max-preview-size 10)
-    (map! :n ranger-mode-map
-          "DEL" #'ranger-toggle-dotfiles))
 #+end_src
 ** =dired=
 #+begin_src emacs-lisp
