@@ -829,10 +829,14 @@ family is the one `refresh-global-font-size' sets.")
 #+end_src
 ** Scroll
 #+begin_src emacs-lisp
-  (pixel-scroll-precision-mode)
   (setq scroll-conservatively 1000
         scroll-preserve-screen-position 'always)
   (scroll-bar-mode -1)
+
+  (use-package ultra-scroll
+    :config
+    (setq ultra-scroll-throttle-mode-line t)
+    (ultra-scroll-mode 1))
 #+end_src
 ** Odds and Ends
 #+begin_src emacs-lisp
