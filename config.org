@@ -997,7 +997,11 @@ buffers and terminals already are.
                                       magit-diff-mode
                                       ibuffer-mode
                                       dired-mode
-                                      occur-mode))
+                                      occur-mode)
+        ;; global mode skips *special* buffers unless listed here, which
+        ;; would otherwise include org src edit buffers.
+        whitespace-global-mode-buffers (list (rx bos "*scratch*" eos)
+                                             (rx bos "*Org Src ")))
 
   (with-eval-after-load 'whitespace
     ;; Never visualize whitespace in agent-shell buffers
