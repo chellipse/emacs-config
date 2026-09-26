@@ -835,8 +835,22 @@ family is the one `refresh-global-font-size' sets.")
 
   (use-package ultra-scroll
     :config
-    (setq ultra-scroll-throttle-mode-line t)
-    (ultra-scroll-mode 1))
+    (setq ultra-scroll-throttle-mode-line 0.25)
+    (ultra-scroll-mode 1)
+
+    ;; Upstream cleanup uses WIN's current buffer: a deleted window leaves
+    ;; the scroll timer set, and a switched buffer restores the wrong mode line.
+    ;; Bypass that step; always clear the timer and restore throttled buffers.
+    (define-advice ultra-scroll--end-scroll (:around (orig win) my/safe-reset)
+      (unwind-protect
+          (let ((ultra-scroll-throttle-mode-line nil))
+            (funcall orig win))
+        (setq ultra-scroll--timer nil)
+        (dolist (buf (buffer-list))
+          (with-current-buffer buf
+            (when (eq (car-safe mode-line-format) 'ultra-scroll--mode-line)
+              (setq mode-line-format (cddr mode-line-format)
+                    ultra-scroll--mode-line-throttle-time nil)))))))
 #+end_src
 ** Odds and Ends
 #+begin_src emacs-lisp
