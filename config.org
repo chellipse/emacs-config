@@ -2511,6 +2511,10 @@ keep this before-save-hook guard even with the init.el fix."
       (makunbound 'w3m-input-url-history))
     (defvaralias 'w3m-input-url-history 'eww-prompt-history)
     :config
+    ;; Restore the SPC leader after evil-collection installs w3m's page-down
+    ;; binding. S-SPC, C-f, and C-d retain page navigation.
+    (map! :n w3m-mode-map "SPC" nil)
+
     ;; record every rendered page, not just typed urls, like `my/eww-record-url'
     (add-hook 'w3m-display-hook
               (lambda (url)
