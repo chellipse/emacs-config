@@ -2970,6 +2970,9 @@ keep this before-save-hook guard even with the init.el fix."
 
           mu4e-notification-support nil
 
+          ;; `mm-w3m-safe-url-regexp' restricts images to cid: parts.
+          mm-text-html-renderer 'w3m
+
           ;; send through bridge smtp with msmtp, which reads the password from
           ;; pass. emacs does not handle the credential.
           message-send-mail-function #'message-send-mail-with-sendmail
