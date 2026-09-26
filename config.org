@@ -930,9 +930,6 @@ family is the one `refresh-global-font-size' sets.")
   (add-display-rule! "\\*compilation\\*"
                      display-buffer-reuse-window display-buffer-in-alt-frame
                      display-buffer-in-rightmost-other-window)
-  ;; claude-code changes arrive as monet's "*Diff: file*" diff-mode buffers
-  (add-display-rule! "\\`\\*Diff: "
-                     display-buffer-reuse-window display-buffer-in-alt-frame)
   (add-display-rule! (derived-mode . magit-mode)
                      display-buffer-reuse-window display-buffer-in-alt-frame
                      display-buffer-in-rightmost-other-window)
@@ -1244,7 +1241,6 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
                  ;; Open
                  "o e" '("Open Eshell!" . eshell)
                  "o g" #'gptel
-                 "o c" '("⁺˚⋆ CLAUDE ⁺˚⋆" . my-claude-code)
                  "o a" '("Claude in directory" . my/agent-shell-claude-in-directory)
                  "o o" '("Codex in directory" . my/agent-shell-codex-in-directory)
                  "o A" nil
@@ -1315,13 +1311,11 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
       (evil-normal-state)
       (evil-visual-restore))
     (map! :v '(global evil-mode-map)
-          "RET" (cmd! (claude-code-send-region '(4)))
           ">" #'my/evil-shift-right-keep-selection
           "<" #'my/evil-shift-left-keep-selection
           "t" #'my/evil-comment-lines)
     (map! :ni '(global evil-mode-map)
-          "C-f" #'other-window
-          "C-<escape>" #'claude-code-send-escape)
+          "C-f" #'other-window)
 
     ;; normal scroll commands don't scroll a consistent number of lines in word
     ;; wrapped buffers. this alternative has more desireable behavior
@@ -1376,10 +1370,6 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
           "C-w H" #'my/window-move-left
           "C-w L" #'my/window-move-right
           "C-c s" #'my/agent-shell-send-command-with-context
-          "C-c f" #'claude-code-fix-error-at-point
-          "C-c 1" #'claude-code-send-1
-          "C-c 2" #'claude-code-send-2
-          "C-c 3" #'claude-code-send-3
           "C-x x" #'revert-buffer-quick
           "9" (cmd! (my/scroll-screen-lines 18))
           "0" (cmd! (my/scroll-screen-lines -18))
@@ -1617,22 +1607,15 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
     (after! (evil)
             (evil-set-command-property 'my/consult-line-defun :jump t))
 
-    ;; source behind `f c'. matching on the major mode rather than the buffer
-    ;; name means every agent-shell agent is covered -- "Claude Agent @ dir",
-    ;; "Codex @ dir", and whatever comes next -- along with agent-shell's
-    ;; viewport/diff sub-modes, which all share the mode-name prefix. the
-    ;; lowercase acp-client-stderr(...) and *acp error* buffers stay out
-    ;; because they are fundamental-mode. claude-code's vterm buffers have no
-    ;; agent-shell mode at all, hence the separate name check -- spelled out
-    ;; rather than calling `my/claude-vterm-buffer-p', which lives in vterm's
-    ;; :config and is void until vterm has been loaded.
-    ;; in `:init' so the key works before consult has been loaded.
+    ;; Match agent-shell's major-mode prefix for `f c', including viewport/diff
+    ;; modes but excluding ACP stderr/error buffers in fundamental-mode.
+    ;; Define in :init so the binding works before Consult loads.
     (defun my/agent-buffer-p (&optional buffer)
-      "Non-nil if BUFFER is any agent shell, or a claude-code vterm."
-      (or (string-prefix-p "*claude" (buffer-name buffer))
-          (string-prefix-p "agent-shell"
-                           (symbol-name (buffer-local-value
-                                         'major-mode (or buffer (current-buffer)))))))
+      "Non-nil if BUFFER's major mode has the agent-shell prefix.
+  BUFFER defaults to the current buffer."
+      (string-prefix-p "agent-shell"
+                       (symbol-name (buffer-local-value
+                                     'major-mode (or buffer (current-buffer))))))
 
     (defvar my/consult--source-agent-buffer
       `(:name "Agent"
@@ -2167,17 +2150,7 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
 ** =ansi-color=
 #+begin_src emacs-lisp
   (use-package ansi-color
-    :hook ((compilation-filter . ansi-color-compilation-filter)
-           ;; TODO remove? think this is dead code since the other hook handles monet diff colors
-           (diff-mode . (lambda ()
-                          (let ((inhibit-read-only t))
-                            (ansi-color-apply-on-region (point-min) (point-max)))
-                          ;; Also apply after font-lock in case it runs later
-                          (add-hook 'font-lock-mode-hook
-                                    (lambda ()
-                                      (let ((inhibit-read-only t))
-                                        (ansi-color-apply-on-region (point-min) (point-max))))
-                                    nil t)))))
+    :hook (compilation-filter . ansi-color-compilation-filter))
 #+end_src
 * Projects
 ** =projectile=
@@ -2400,269 +2373,12 @@ keep this before-save-hook guard even with the init.el fix."
     (vterm-buffer-name-string "vterm: %s")
     :config
     (evil-set-initial-state 'vterm-mode 'insert)
-    ;; Everything below targets claude-code's fullscreen TUI; normal vterm
-    ;; buffers should behave like a plain terminal, so each tweak is gated on
-    ;; `my/claude-vterm-buffer-p'. claude-code names its buffer (via
-    ;; `get-buffer-create') *before* running `vterm-mode', so the name check is
-    ;; already valid inside `vterm-mode-hook' and in advices (which run in the
-    ;; term buffer's context).
-    (defun my/claude-vterm-buffer-p (&optional buffer)
-      "Non-nil if BUFFER (default current) is a claude-code vterm buffer."
-      (string-prefix-p "*claude" (or (buffer-name buffer) "")))
-    (defvar my/vterm-claude-timer-delay 0.016
-      "Buffer-local `vterm-timer-delay' for claude buffers.
-vterm throttles redisplay to at most once per `vterm-timer-delay' to survive
-heavy output bursts; the 0.1s default adds up to 100ms of latency per frame,
-very visible when scrolling a fullscreen TUI. 0.016 (~60Hz) keeps scroll
-snappy. Scoped to claude buffers so noisy normal shells keep the safer
-default.")
-    (defun my/vterm-claude-setup ()
-      "Per-buffer setup applied only to claude-code vterm buffers."
-      (when (my/claude-vterm-buffer-p)
-        ;; no line-number gutter: with relative numbers its rendered width
-        ;; drifts under vterm's fixed margin reservation
-        ;; (`vterm--get-margin-width'), offsetting the terminal grid and
-        ;; misaligning TUI rendering (e.g. claude's input box / borders)
-        (display-line-numbers-mode -1)
-        (setq-local vterm-timer-delay my/vterm-claude-timer-delay)
-        ;; Disable `pixel-scroll-precision-mode' in this buffer only. It's a
-        ;; global mode whose keymap lives in `minor-mode-map-alist' (checked
-        ;; before the major-mode map), so it can shadow our wheel forwarding.
-        ;; `minor-mode-map-alist' activates each map by the variable's
-        ;; buffer-local value, so nil-ing it locally deactivates its keymap
-        ;; here while leaving the global mode on everywhere else.
-        (setq-local pixel-scroll-precision-mode nil)))
-    (add-hook 'vterm-mode-hook #'my/vterm-claude-setup)
-    ;; Reserve a couple extra columns on top of vterm's own margin so the width
-    ;; reported to the child process is slightly under the real window width.
-    ;; vterm/Emacs disagree on the usable last column (cursor-wrap), which skews
-    ;; TUI rendering (e.g. claude-code's box borders). `vterm--get-margin-width'
-    ;; is subtracted from the reported width in BOTH the startup (vterm.el:774)
-    ;; and resize (vterm.el:1657) paths, so padding its return value shrinks the
-    ;; reported width everywhere.
-    (defvar my/vterm-width-shrink 2
-      "Extra columns to subtract from the width vterm reports to the pty.")
-    (defun my/vterm-width-shrink-advice (orig-fun &rest args)
-      "Reserve `my/vterm-width-shrink' extra columns, claude buffers only.
-Runs in the vterm buffer's context, so `my/claude-vterm-buffer-p' gates it."
-      (+ (apply orig-fun args)
-         (if (my/claude-vterm-buffer-p) my/vterm-width-shrink 0)))
-    (advice-add 'vterm--get-margin-width :around #'my/vterm-width-shrink-advice)
-    ;; Cap the terminal width for claude buffers, like the eat setup
-    ;; (`my/eat-max-width'). vterm sizes the pty in TWO places and BOTH must be
-    ;; clamped, else the cap leaks:
-    ;;   - `vterm--set-size' ioctls the pty directly (C), and runs *every* adjust
-    ;;     call regardless of the return value;
-    ;;   - `set-process-window-size' applies the adjust fn's return value.
-    ;; Capping only the return value (or only one sink) fails: claude-code's
-    ;; resize optimization returns nil on non-width changes, so Emacs skips its
-    ;; resize while `vterm--set-size' has already reset the pty to full width.
-    (defvar my/vterm-max-width 100
-      "Maximum terminal width (columns) for claude vterm buffers.")
-    (defun my/vterm--clamp-width-arg (args)
-      "Clamp the WIDTH arg (3rd) of a vterm size call in claude buffers.
-Used as :filter-args for `vterm--set-size' (runs in the term buffer)."
-      (when (and (numberp (nth 2 args)) (my/claude-vterm-buffer-p))
-        (setf (nth 2 args) (min my/vterm-max-width (nth 2 args))))
-      args)
-    (advice-add 'vterm--set-size :filter-args #'my/vterm--clamp-width-arg)
-    (defun my/vterm--clamp-process-width-arg (args)
-      "Clamp the WIDTH arg (3rd) of `set-process-window-size' for claude procs."
-      (let ((proc (car args)))
-        (when (and (processp proc)
-                   (buffer-live-p (process-buffer proc))
-                   (my/claude-vterm-buffer-p (process-buffer proc))
-                   (numberp (nth 2 args)))
-          (setf (nth 2 args) (min my/vterm-max-width (nth 2 args)))))
-      args)
-    (advice-add 'set-process-window-size
-                :filter-args #'my/vterm--clamp-process-width-arg)
-    ;; Forward the mouse wheel to the child process for claude-code buffers.
-    ;; vterm.el (this build) does no mouse reporting at all -- it only binds
-    ;; mouse-1 -- so the wheel hits Emacs' global `mwheel-scroll' and moves the
-    ;; window. In claude's fullscreen (alt-screen) mode only the visible screen
-    ;; is rendered, so scrolling the Emacs buffer shows nothing useful; claude
-    ;; itself must rerender. So in claude buffers we synthesize SGR mouse-wheel
-    ;; reports (button 64 = up, 65 = down; `ESC[<btn;col;rowM') and write them
-    ;; straight to the pty, bypassing libvterm's keyboard encoding. Non-claude
-    ;; vterm buffers keep normal Emacs scrolling.
-    ;; NOTE: this only works if claude-code has mouse tracking enabled; if the
-    ;; sequences show up as literal text in the input box instead, it isn't
-    ;; grabbing the mouse and a different scroll mechanism is needed.
-    ;; Each SGR report makes claude repaint the whole screen (and vterm
-    ;; re-render), so a fast spin floods it into a backlog and scrolling lags.
-    ;; Send ONE report per notch and coalesce queued same-direction notches
-    ;; into a single capped burst: a fast spin collapses to a few reports
-    ;; instead of dozens. claude's repaint rate is the hard ceiling.
-    (defvar my/vterm-mouse-scroll-ticks 3
-      "Wheel-tick reports to send the child per physical notch.
-NOTE: this is *ticks*, not lines -- claude decides how many lines one tick
-scrolls (it's more than one), so the on-screen distance is this times that.
-Tune to taste: bigger = farther per notch.")
-    (defvar my/vterm-mouse-scroll-max-notches 3
-      "How many queued same-direction notches to coalesce into one burst.
-This is the acceleration knob: a fast spin scrolls up to this many notches'
-worth at once. Set to 1 for a strict fixed `my/vterm-mouse-scroll-ticks'
-per notch (queued notches are then processed one-by-one instead).")
-    (defun my/vterm--coalesce-wheel (event)
-      "Return notch count for EVENT plus any queued same-direction wheel events.
-Non-matching pending events are pushed back onto `unread-command-events'."
-      (let ((this (event-basic-type event)) (n 1))
-        (while (and (< n my/vterm-mouse-scroll-max-notches)
-                    (input-pending-p)
-                    (let ((next (read-event)))
-                      (if (eq (event-basic-type next) this)
-                          (setq n (1+ n))
-                        (push next unread-command-events)
-                        nil))))
-        n))
-    ;; Stale glyphs after a scroll: cells that should now be blank keep their
-    ;; old character. On this pgtk+wlroots stack that's most likely a dropped
-    ;; repaint (same family as the corfu child-frame ghosting) -- vterm updated
-    ;; the buffer but the screen wasn't painted. `redraw-frame' forces a full
-    ;; top-level repaint, which clears it. It's expensive (full-frame, software
-    ;; repaint), so instead of paying it per notch we DEBOUNCE: each scroll
-    ;; resets a timer, and the redraw fires only once, shortly after scrolling
-    ;; stops. Minor mid-scroll artifacts are tolerated and cleaned up on pause.
-    ;; NOTE: if artifacts survive this, the staleness is in claude's own diff
-    ;; model (it thinks the cell is already blank -- usually a wide-char width
-    ;; disagreement), and no Emacs-side redraw can fix it; claude must repaint.
-    (defvar my/vterm-scroll-force-redraw t
-      "When non-nil, force a frame redraw after a claude vterm scroll settles.")
-    (defvar my/vterm-scroll-redraw-delay 0.05
-      "Debounce: seconds of scroll quiet before the cleanup redraw fires.")
-    (defvar my/vterm--scroll-redraw-timer nil
-      "Pending debounced post-scroll redraw timer, if any.")
-    (defun my/vterm--send-wheel (event button)
-      "Send SGR mouse-wheel BUTTON to the vterm child under EVENT, or scroll.
-Falls back to `mwheel-scroll' outside claude-code vterm buffers."
-      (let* ((pos (event-start event))
-             (win (posn-window pos))
-             (buf (and (windowp win) (window-buffer win))))
-        (if (and buf (my/claude-vterm-buffer-p buf)
-                 (buffer-local-value 'vterm--process buf))
-            (let* ((cr  (posn-col-row pos))
-                   (col (1+ (car cr)))
-                   (row (1+ (cdr cr)))
-                   (seq (format "\e[<%d;%d;%dM" button col row))
-                   (proc (buffer-local-value 'vterm--process buf))
-                   (notches (my/vterm--coalesce-wheel event))
-                   (count (* notches my/vterm-mouse-scroll-ticks)))
-              ;; One batched write so claude reads all reports in a single
-              ;; chunk and repaints once, not once per line.
-              (process-send-string proc (apply #'concat (make-list count seq)))
-              (when (and my/vterm-scroll-force-redraw (window-live-p win))
-                (my/vterm--schedule-redraw (window-frame win))))
-          (mwheel-scroll event))))
-    (defun my/vterm--schedule-redraw (frame)
-      "(Re)arm the debounced cleanup redraw for FRAME."
-      (when (timerp my/vterm--scroll-redraw-timer)
-        (cancel-timer my/vterm--scroll-redraw-timer))
-      (setq my/vterm--scroll-redraw-timer
-            (run-at-time my/vterm-scroll-redraw-delay nil
-                         #'my/vterm--redraw-frame frame)))
-    (defun my/vterm--redraw-frame (frame)
-      "Force a full repaint of FRAME if it is still live."
-      (setq my/vterm--scroll-redraw-timer nil)
-      (when (frame-live-p frame)
-        (redraw-frame frame)))
-    ;; Manual "unstick the rendering" command. Claude sometimes leaves the
-    ;; screen garbled until a resize or a new message; only a full claude
-    ;; repaint fixes a diff-model desync, and a resize triggers one via
-    ;; SIGWINCH. We reproduce a resize: shrink the terminal by a row, HOLD it
-    ;; briefly, then restore. The hold is essential -- a nudge-and-immediately-
-    ;; restore fails because SIGWINCHes coalesce, so claude reads the final
-    ;; (unchanged) size and skips the repaint. Holding the changed size long
-    ;; enough for claude to observe it mirrors a real, persistent resize.
-    ;; `set-process-window-size' is the primitive that actually TIOCSWINSZ's the
-    ;; pty (-> SIGWINCH); `vterm--set-size' keeps libvterm's grid in sync. We
-    ;; bypass `claude-code-optimize-window-resize' (which would suppress a
-    ;; height-only change) by calling these directly rather than via the adjust
-    ;; fn it advises. Width is recomputed exactly as vterm does (margin + shrink
-    ;; + clamp) so the restore size is right.
-    (defvar my/vterm-redraw-nudge-delay 0.1
-      "Seconds to hold the nudged terminal size before restoring it.
-Must be long enough for claude to observe the changed size and repaint.")
-    (defun my/vterm--resize (h w)
-      "Resize libvterm's grid and the pty to H rows by W cols (fires SIGWINCH)."
-      (let ((inhibit-read-only t))     ; vterm--set-size reflows the RO buffer
-        (vterm--set-size vterm--term h w))
-      (when (process-live-p vterm--process)
-        (set-process-window-size vterm--process h w)))
-    (defun my/vterm--force-redraw-restore (buf h w)
-      "Restore BUF's terminal to H by W and repaint (the deferred half)."
-      (when (buffer-live-p buf)
-        (with-current-buffer buf
-          (when (bound-and-true-p vterm--term)
-            (my/vterm--resize h w)
-            (redraw-frame)))))
-    (defun my/vterm-force-redraw ()
-      "Force claude to fully repaint its vterm buffer, like a window resize.
-Fixes garbled/stale rendering that an Emacs-only redraw can't."
-      (interactive)
-      (if (and (bound-and-true-p vterm--term) (my/claude-vterm-buffer-p))
-          (let* ((windows (get-buffer-window-list (current-buffer) nil t))
-                 (raw (and windows
-                           (funcall window-adjust-process-window-size-function
-                                    vterm--process windows))))
-            (if (not raw)
-                (redraw-frame)      ; not displayed: best-effort Emacs repaint
-              (let ((w (max vterm-min-window-width
-                            (- (car raw) (vterm--get-margin-width))))
-                    (h (cdr raw)))
-                ;; shrink and HOLD, then restore after the delay
-                (my/vterm--resize (max 2 (1- h)) w)
-                (run-at-time my/vterm-redraw-nudge-delay nil
-                             #'my/vterm--force-redraw-restore
-                             (current-buffer) h w))))
-        (user-error "Not in a claude-code vterm buffer")))
-    (defun my/vterm-wheel-up (event)
-      "Forward a wheel-up to the claude-code child, else scroll."
-      (interactive "e")
-      (my/vterm--send-wheel event 64))
-    (defun my/vterm-wheel-down (event)
-      "Forward a wheel-down to the claude-code child, else scroll."
-      (interactive "e")
-      (my/vterm--send-wheel event 65))
-    (define-key vterm-mode-map [wheel-up]   #'my/vterm-wheel-up)
-    (define-key vterm-mode-map [wheel-down] #'my/vterm-wheel-down)
     (map-after! (evil-collection) :n vterm-mode-map
                 "C-d" 'vterm--self-insert
                 ;; NOTE: evil-collection binds C-c C-z to evil-collection-vterm-toggle-send-escape
                 ;; normally, so this is a workaround for now
                 "C-c C-c" 'vterm--self-insert
-                "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0))
-                ;; claude buffers are read-only so replace just errors there;
-                ;; keep it for regular vterm shells
-                "r" (cmd! (if (my/claude-vterm-buffer-p)
-                              (my/vterm-force-redraw)
-                            (call-interactively #'evil-collection-vterm-replace))))
-    (map-after! (evil-collection) :ni vterm-mode-map
-                "C-c C-r" #'my/vterm-force-redraw))
-#+end_src
-** =eat=
-#+begin_src emacs-lisp
-  (use-package eat
-    :commands eat
-    :hook (eat-mode . (lambda ()
-                        ;; so programs won't use basic ansi base-7 coloring
-                        ;; such as: claude
-                        (setenv "COLORTERM" "truecolor")
-                        ;; no line-number gutter: it offsets/jitters the
-                        ;; terminal grid and misaligns TUI rendering (1/2 sure this works)
-                        (display-line-numbers-mode -1)
-                        (map! :ni 'local
-                              "C-f" 'other-window
-                              "C-y" 'eat-yank)))
-    :config
-    ;; NOTE: so claude-code buffers don't autoscroll to top constantly
-    ;; NOTE: this is actually because cc will cut-off old text after a point, which
-    ;; causes a rerender of the whole buffer for the terminal emulator, which resets
-    ;; our scroll position. this should be fixeable via using vterm (requires fixing
-    ;; a few rendering issues first) and then adding an advice wrapper which saves
-    ;; cursor pos and then resets the cursor pos to that after a delay, around w/e
-    ;; function runs the rerendering
-    (setq eat-term-scrollback-size (* 4 1024 1024)))
+                "I" (cmd! (vterm-reset-cursor-point) (evil-insert 0))))
 #+end_src
 ** =dired=
 #+begin_src emacs-lisp
@@ -2901,104 +2617,6 @@ Fixes garbled/stale rendering that an Emacs-only redraw can't."
                                              mistral:text
                                              mistral:latest
                                              llama3.2:latest))))
-#+end_src
-** =claude-code=
-#+begin_src emacs-lisp
-  (use-package claude-code
-    :commands (claude-code
-               claude-code-continue
-               claude-code-resume
-               claude-code-send-command-with-context
-               claude-code-send-region
-               claude-code-start-in-directory
-               claude-code-switch-to-buffer)
-    :init
-    (defun my-claude-code ()
-      "Open or switch to Claude Code buffer for current project."
-      (interactive)
-      (require 'claude-code)
-      (let* ((project-root (or (when (fboundp 'projectile-project-root)
-                                 (projectile-project-root))
-                               (when-let* ((proj (project-current)))
-                                 (project-root proj))
-                               default-directory))
-             (buffer-name (format "*claude:%s:default*"
-                                  (abbreviate-file-name
-                                   (file-name-as-directory project-root))))
-             (existing-buffer (get-buffer buffer-name)))
-        (if existing-buffer
-            (claude-code-switch-to-buffer existing-buffer)
-          (claude-code))))
-
-    :config
-    (require 'inheritenv)
-    (require 'monet)
-    (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
-    (monet-mode 1)
-
-    ;; Custom diff cleanup that preserves window layout
-    (defun my/monet-diff-cleanup-tool (diff-context)
-      "Clean up diff session without deleting the window."
-      (let ((diff-buffer (alist-get 'diff-buffer diff-context))
-            (old-temp-buffer (alist-get 'old-temp-buffer diff-context))
-            (new-temp-buffer (alist-get 'new-temp-buffer diff-context))
-            (kill-buffer-query-functions nil))
-        (when (and diff-buffer (buffer-live-p diff-buffer))
-          (with-current-buffer diff-buffer
-            (set-buffer-modified-p nil))
-          (let ((diff-window (get-buffer-window diff-buffer)))
-            (when (and diff-window (eq (selected-window) diff-window))
-              (switch-to-prev-buffer)))
-          (kill-buffer diff-buffer))
-        (when (and new-temp-buffer (buffer-live-p new-temp-buffer))
-          (with-current-buffer new-temp-buffer
-            (set-buffer-modified-p nil))
-          (kill-buffer new-temp-buffer))
-        (when (and old-temp-buffer (buffer-live-p old-temp-buffer))
-          (with-current-buffer old-temp-buffer
-            (set-buffer-modified-p nil))
-          (kill-buffer old-temp-buffer))))
-    (setq monet-diff-cleanup-tool #'my/monet-diff-cleanup-tool)
-
-    (require 'eat)
-    (setq claude-code-terminal-backend 'vterm)
-
-    (defun my-claude-display-right (buffer)
-      "Display Claude buffer in right window."
-      (display-buffer buffer '((display-buffer-in-direction)
-                               (direction . right)
-                               (window-width . 0.5))))
-    (setq claude-code-display-window-fn #'my-claude-display-right)
-
-    ;; Buffer terminal width to prevent graphical bugs from line number growth
-    (defvar my/eat-width-buffer 1
-      "Number of columns to subtract from terminal width.")
-
-    (defvar my/eat-max-width 80
-      "Maximum terminal width to report.")
-
-    (defun my/eat-width-buffer-advice (orig-fun &rest args)
-      "Adjust reported terminal width: subtract buffer and cap at max."
-      (let ((result (apply orig-fun args)))
-        (when (and result (consp result) (numberp (car result)))
-          (setcar result (min my/eat-max-width (- (car result) my/eat-width-buffer))))
-        result))
-
-    (advice-add 'eat--adjust-process-window-size
-                :around #'my/eat-width-buffer-advice)
-
-    ;; macOS desktop notifications via terminal-notifier
-    (when (eq system-type 'darwin)
-      (setq claude-code-notification-function
-            (lambda (title message)
-              (let ((buf-name (buffer-name)))
-                (start-process "claude-notify" nil "terminal-notifier"
-                               "-title" buf-name
-                               "-subtitle" title
-                               "-message" message
-                               "-sound" "default")))))
-
-    (claude-code-mode))
 #+end_src
 ** =agent-shell=
 #+begin_src emacs-lisp
