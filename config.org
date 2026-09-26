@@ -850,7 +850,17 @@ family is the one `refresh-global-font-size' sets.")
           (with-current-buffer buf
             (when (eq (car-safe mode-line-format) 'ultra-scroll--mode-line)
               (setq mode-line-format (cddr mode-line-format)
-                    ultra-scroll--mode-line-throttle-time nil)))))))
+                    ultra-scroll--mode-line-throttle-time nil))))))
+
+    ;; PGTK/GTK3 reports discrete wheel notches. Use built-in mouse
+    ;; interpolation (`pixel-scroll-precision-interpolate-mice'); retain
+    ;; ultra-scroll for trackpad pixel deltas.
+    (defun my/ultra-scroll-interpolate-mice (orig event &optional arg)
+      "Interpolate mouse EVENT; otherwise call ORIG with EVENT and ARG."
+      (if (eq (device-class last-event-frame last-event-device) 'mouse)
+          (pixel-scroll-precision event)
+        (funcall orig event arg)))
+    (advice-add 'ultra-scroll :around #'my/ultra-scroll-interpolate-mice))
 #+end_src
 ** Odds and Ends
 #+begin_src emacs-lisp
