@@ -1090,8 +1090,7 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
 ** =rainbow-delimiters=
 #+begin_src emacs-lisp
   (use-package rainbow-delimiters
-    :init
-    (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
+    :hook (prog-mode . rainbow-delimiters-mode))
 #+end_src
 ** =dashboard=
 #+begin_src emacs-lisp
@@ -1157,7 +1156,7 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
 ** =rainbow-mode=
 #+begin_src emacs-lisp
   (use-package rainbow-mode
-    )
+    :commands rainbow-mode)
 #+end_src
 ** =which-key=
 #+begin_src emacs-lisp
@@ -1802,7 +1801,8 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
 ** =flycheck=
 #+begin_src emacs-lisp
   (use-package flycheck
-    :config
+    :defer t
+    :init
     ;; instead of disabling we just select exactly what we want
     (add-hook! (rust-mode-hook rust-ts-mode-hook)
                (lambda ()
@@ -2029,10 +2029,8 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
 #+end_src
 ** =poly-markdown=
 #+begin_src emacs-lisp
-  (use-package polymode)
-
+  ;; Load polymode through poly-markdown on the first Markdown buffer.
   (use-package poly-markdown
-    :after polymode
     :mode ("\\.md\\'" . poly-markdown-mode))
 #+end_src
 ** =bash-ts-mode=
@@ -2320,13 +2318,14 @@ keep this before-save-hook guard even with the init.el fix."
 #+end_src
 ** =tramp=
 #+begin_src emacs-lisp
-  (require 'tramp)
-  (add-to-list 'tramp-methods
-               '("distrobox"
-                 (tramp-login-program "distrobox")
-                 (tramp-login-args (("enter" "%h" "--" "%l")))
-                 (tramp-remote-shell "/usr/bin/env bash")
-                 (tramp-remote-shell-args ("-c"))))
+  ;; Preserve TRAMP autoloading when registering the distrobox method.
+  (with-eval-after-load 'tramp
+    (add-to-list 'tramp-methods
+                 '("distrobox"
+                   (tramp-login-program "distrobox")
+                   (tramp-login-args (("enter" "%h" "--" "%l")))
+                   (tramp-remote-shell "/usr/bin/env bash")
+                   (tramp-remote-shell-args ("-c")))))
 #+end_src
 ** =transpose-frame=
 #+begin_src emacs-lisp
@@ -2389,6 +2388,7 @@ keep this before-save-hook guard even with the init.el fix."
 ** =all-the-icons=
 #+begin_src emacs-lisp
   (use-package all-the-icons
+    :defer t
     :if (display-graphic-p))
 #+end_src
 ** =treemacs=
