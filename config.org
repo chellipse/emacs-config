@@ -3333,7 +3333,21 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
           message-sendmail-extra-arguments '("--read-envelope-from")
 
           user-mail-address "pumpkinbiscuit@protonmail.com"
-          user-full-name "Chell Laszlo")
+          user-full-name "Chell Laszlo"
+
+          ;; Reuse the originating window for headers, messages, and drafts.
+          ;; Unlike nil, 'single-window replaces the main buffer with a
+          ;; minibuffer menu.
+          mu4e-split-view nil)
+
+    ;; Override `display-buffer-full-frame' to preserve other windows.
+    (add-display-rule! "\\`\\*mu4e-main\\*\\'"
+                       display-buffer-reuse-window display-buffer-same-window)
+
+    ;; Restoring the pre-compose layout would discard intervening window
+    ;; changes. Closing the draft already restores its window's previous buffer.
+    (remove-hook 'mu4e-compose-post-hook
+                 #'mu4e-compose-post-restore-window-configuration)
 
     (setq mu4e-bookmarks
           '(
