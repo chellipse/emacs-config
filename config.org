@@ -2801,6 +2801,35 @@ keep this before-save-hook guard even with the init.el fix."
                 (unless (string-prefix-p "about:" url)
                   (add-to-history 'eww-prompt-history url 1000))))
 
+    ;; Cloudflare 525 indicates an origin TLS handshake failure. Reloads often
+    ;; recover transient failures; limit automatic retries to three per URL.
+    (defvar-local my/w3m-525-retry nil
+      "(URL . ATTEMPTS) for Cloudflare 525 retries, or nil when inactive.")
+
+    (defun my/w3m-retry-525 (url)
+      "Reload URL's page if it is Cloudflare's 525 error, up to 3 times."
+      (if (not (and w3m-current-title
+                    (string-match-p "| 525: " w3m-current-title)
+                    ;; POST reloads would prompt to resubmit form data.
+                    (not (w3m-history-plist-get :post-data))))
+          (setq my/w3m-525-retry nil)
+        (let ((tries (if (equal (car my/w3m-525-retry) url)
+                         (cdr my/w3m-525-retry)
+                       0))
+              (buf (current-buffer)))
+          (if (>= tries 3)
+              (progn
+                (setq my/w3m-525-retry nil)
+                (message "Still Cloudflare 525 after 3 retries; g r to try again"))
+            (setq my/w3m-525-retry (cons url (1+ tries)))
+            (message "Cloudflare 525, retrying (%d/3)..." (1+ tries))
+            ;; Defer reload until w3m finishes the current display cycle.
+            (run-at-time 0.5 nil (lambda ()
+                                   (when (buffer-live-p buf)
+                                     (with-current-buffer buf
+                                       (w3m-reload-this-page)))))))))
+    (add-hook 'w3m-display-hook #'my/w3m-retry-525)
+
     ;; w3m reads urls with a plain `read-from-minibuffer', so past urls only
     ;; come back one at a time with M-p. read them like eww instead: vertico
     ;; lists the shared history, and since the history variable is
