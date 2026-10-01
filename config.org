@@ -3349,6 +3349,30 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
     (remove-hook 'mu4e-compose-post-hook
                  #'mu4e-compose-post-restore-window-configuration)
 
+    ;; Fold threads by default so per-run Gerrit/Maloo updates collapse to one
+    ;; line. Folding stops at the first unread message, keeping new results
+    ;; visible. Every search, including auto-update reruns, resets the headers
+    ;; buffer's locals; keeping the fold state permanent-local preserves
+    ;; threads toggled open with TAB.
+    (put 'mu4e-thread--fold-status 'permanent-local t)
+    (put 'mu4e-thread--docids 'permanent-local t)
+
+    (defun my/mu4e-fold-threads ()
+      "Apply thread folding, folding all threads in a new headers buffer."
+      (when mu4e-thread-mode
+        (unless (local-variable-p 'mu4e-thread--fold-status)
+          (setq mu4e-thread--fold-status t))
+        ;; `mu4e-thread-fold-apply-all' refolds threads saved as folded even
+        ;; after folding everything, stacking a second overlay that takes two
+        ;; TABs to open. Drop saved states that match the global one.
+        (let ((global (if mu4e-thread--fold-status 'folded 'unfolded)))
+          (setq mu4e-thread--docids
+                (seq-remove (lambda (entry) (eq (cdr entry) global))
+                            mu4e-thread--docids)))
+        (mu4e-thread-fold-apply-all)))
+
+    (add-hook 'mu4e-thread-mode-hook #'my/mu4e-fold-threads)
+
     (setq mu4e-bookmarks
           '(
             (:name "Zero"
