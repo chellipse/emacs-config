@@ -3188,6 +3188,29 @@ keep this before-save-hook guard even with the init.el fix."
          :on-event #'my/agent-shell-attention)))
     (add-hook 'agent-shell-mode-hook #'my/agent-shell-subscribe-attention)
 
+    ;; Long transcripts retain text properties that increase GC work.
+    ;; Use agent-shell's comint truncation mechanism to retain only the tail;
+    ;; full transcripts remain in .agent-shell/transcripts/.
+    (defun my/agent-shell-trim (&optional keep)
+      "Delete all but the last KEEP lines of this agent-shell buffer.
+KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
+\\[universal-argument] prompts for it."
+      (interactive
+       (list (cond ((integerp current-prefix-arg) current-prefix-arg)
+                   (current-prefix-arg (read-number "Keep lines: " 2000))
+                   (t 2000))))
+      (unless (derived-mode-p 'agent-shell-mode)
+        (user-error "Not in an agent-shell buffer"))
+      (when (shell-maker-busy)
+        (user-error "Agent is busy; trim once the turn finishes"))
+      (let ((before (count-lines (point-min) (point-max)))
+            (comint-buffer-maximum-size (or keep 2000))
+            ;; Avoid retaining deleted transcript text in undo history.
+            (buffer-undo-list t))
+        (comint-truncate-buffer)
+        (let ((after (count-lines (point-min) (point-max))))
+          (message "Trimmed %d lines, kept %d" (- before after) after))))
+
     ;; Keep a one-line minimum margin; ultra-scroll temporarily zeroes it
     ;; during trackpad scrolling (see Scroll).
     (add-hook 'agent-shell-mode-hook
