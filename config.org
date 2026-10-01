@@ -1322,7 +1322,16 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     ;; NOTE: goal here is that if we open emacs via cli and pass it file args, that we won't
     ;; end up with the dashboard in one window
     (if (>= 1 (length command-line-args)) (setq initial-buffer-choice (lambda () (get-buffer-create dashboard-buffer-name))))
-    (dashboard-setup-startup-hook))
+    (dashboard-setup-startup-hook)
+    ;; Without a graphical frame, `image-transforms-p' is nil and dashboard
+    ;; drops banner size and mask properties. Rebuild on the daemon's first
+    ;; graphical client frame.
+    (when (daemonp)
+      (defun my/dashboard-rebuild-graphical ()
+        (when (display-graphic-p)
+          (remove-hook 'server-after-make-frame-hook #'my/dashboard-rebuild-graphical)
+          (dashboard-insert-startupify-lists t)))
+      (add-hook 'server-after-make-frame-hook #'my/dashboard-rebuild-graphical)))
 #+end_src
 ** =writeroom-mode=
 #+begin_src emacs-lisp
