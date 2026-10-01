@@ -849,7 +849,8 @@ family is the one `refresh-global-font-size' sets.")
 
     ;; Upstream cleanup uses WIN's current buffer: a deleted window leaves
     ;; the scroll timer set, and a switched buffer restores the wrong mode line.
-    ;; Bypass that step; always clear the timer and restore throttled buffers.
+    ;; Bypass that step; clear the timer and restore throttled buffers and
+    ;; saved local scroll margins independently of WIN.
     (define-advice ultra-scroll--end-scroll (:around (orig win) my/safe-reset)
       (unwind-protect
           (let ((ultra-scroll-throttle-mode-line nil))
@@ -859,7 +860,25 @@ family is the one `refresh-global-font-size' sets.")
           (with-current-buffer buf
             (when (eq (car-safe mode-line-format) 'ultra-scroll--mode-line)
               (setq mode-line-format (cddr mode-line-format)
-                    ultra-scroll--mode-line-throttle-time nil))))))
+                    ultra-scroll--mode-line-throttle-time nil))
+            (when my/ultra-scroll-saved-margin
+              (setq scroll-margin my/ultra-scroll-saved-margin
+                    my/ultra-scroll-saved-margin nil))))))
+
+    ;; ultra-scroll retains the selected buffer's margin and can later write
+    ;; it to the global default. Zero local margins in both the selected and
+    ;; scrolled buffers before calling upstream, which then sees only zero.
+    (defvar-local my/ultra-scroll-saved-margin nil
+      "Local `scroll-margin' saved while ultra-scroll temporarily zeroes it.")
+
+    (defun my/ultra-scroll-zero-local-margins (event)
+      "Zero local scroll margins in the current buffer and EVENT's window."
+      (dolist (buf (list (current-buffer)
+                         (window-buffer (mwheel-event-window event))))
+        (with-current-buffer buf
+          (when (and (local-variable-p 'scroll-margin) (> scroll-margin 0))
+            (setq my/ultra-scroll-saved-margin scroll-margin
+                  scroll-margin 0)))))
 
     ;; PGTK/GTK3 reports discrete wheel notches. Use built-in mouse
     ;; interpolation (`pixel-scroll-precision-interpolate-mice'); retain
@@ -868,6 +887,7 @@ family is the one `refresh-global-font-size' sets.")
       "Interpolate mouse EVENT; otherwise call ORIG with EVENT and ARG."
       (if (eq (device-class last-event-frame last-event-device) 'mouse)
           (pixel-scroll-precision event)
+        (my/ultra-scroll-zero-local-margins event)
         (funcall orig event arg)))
     (advice-add 'ultra-scroll :around #'my/ultra-scroll-interpolate-mice))
 #+end_src
@@ -2886,7 +2906,12 @@ keep this before-save-hook guard even with the init.el fix."
          :shell-buffer (current-buffer)
          :event ev
          :on-event #'my/agent-shell-attention)))
-    (add-hook 'agent-shell-mode-hook #'my/agent-shell-subscribe-attention))
+    (add-hook 'agent-shell-mode-hook #'my/agent-shell-subscribe-attention)
+
+    ;; Keep a one-line minimum margin; ultra-scroll temporarily zeroes it
+    ;; during trackpad scrolling (see Scroll).
+    (add-hook 'agent-shell-mode-hook
+              (lambda () (setq-local scroll-margin (max 1 scroll-margin)))))
 #+end_src
 ** =elfeed=
 #+begin_src emacs-lisp
