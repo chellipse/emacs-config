@@ -3585,31 +3585,47 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
   ;; windows are focused.  thus, after a focus change we must have a slight
   ;; delay before checking if any emacs frames are focused, then gc only if none
   ;; are.
+  (defvar my/gc-reason nil
+    "Current collection trigger; nil denotes the allocation threshold.")
+
   (defun gc-unless-focused ()
     "Will call garbage-collect if there are no focused emacs frames"
     (interactive)
     (unless (cl-some (lambda (frame) (frame-focus-state frame)) (frame-list))
-      (let ((gc-start-time (current-time)))
-        (garbage-collect)
-        (message "GC ran in %.3fs" (float-time (time-since gc-start-time))))))
+      (let ((my/gc-reason "unfocused"))
+        (garbage-collect))))
+
+  ;; Report GC duration and trigger to identify collection pauses. Log only
+  ;; to *Messages* during minibuffer input to avoid obscuring the prompt.
+  (defvar my/gc-last-elapsed gc-elapsed
+    "`gc-elapsed' after the previous collection.")
+
+  (defun my/gc-report ()
+    "Report the last collection's duration and trigger."
+    (let ((inhibit-message (and (active-minibuffer-window) t)))
+      (message "GC (%s): %.3fs" (or my/gc-reason "threshold")
+               (- gc-elapsed my/gc-last-elapsed)))
+    (setq my/gc-last-elapsed gc-elapsed))
+  (add-hook 'post-gc-hook #'my/gc-report)
 
   (add-function :after after-focus-change-function
                 (lambda () (run-with-timer 0.1 nil #'gc-unless-focused)))
 
-  ;; defer automatic gc during minibuffer input to avoid blocking completion
-  (defvar my/gc--saved-threshold gc-cons-threshold
-    "gc-cons-threshold in effect outside the minibuffer.")
-
-  (defun my/gc-defer-in-minibuffer ()
-    (when (= (minibuffer-depth) 1)
-      (setq my/gc--saved-threshold gc-cons-threshold))
-    (setq gc-cons-threshold most-positive-fixnum))
-
-  (defun my/gc-restore-after-minibuffer ()
-    ;; exit hooks run before the minibuffer closes; depth one is outermost.
-    (when (= (minibuffer-depth) 1)
-      (setq gc-cons-threshold my/gc--saved-threshold)))
-
-  (add-hook 'minibuffer-setup-hook #'my/gc-defer-in-minibuffer)
-  (add-hook 'minibuffer-exit-hook #'my/gc-restore-after-minibuffer)
+  ;; Raise the GC threshold during commands; collect and lower it on idle.
+  ;; Adapt the idle delay to 10x the previous idle collection's duration.
+  (use-package gcmh
+    :config
+    (setq gcmh-idle-delay 'auto
+          gcmh-auto-idle-delay-factor 10
+          ;; On this 32 GB system, heap scans take ~200-500 ms per collection.
+          ;; Use 256 MiB (4x Doom's default) to reduce collections during input.
+          gcmh-high-cons-threshold (* 256 1024 1024)
+          ;; Match init.el's post-startup threshold. GCMH's 800 kB default
+          ;; causes frequent ~250 ms collections during agent-shell output
+          ;; without input; 64 MiB halves the previous 32 MiB collection rate.
+          gcmh-low-cons-threshold (* 64 1024 1024))
+    (define-advice gcmh-idle-garbage-collect (:around (orig) my/gc-reason)
+      (let ((my/gc-reason "idle"))
+        (funcall orig)))
+    (gcmh-mode 1))
 #+end_src

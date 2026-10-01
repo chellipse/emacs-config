@@ -14,8 +14,8 @@
   (set 'gc-cons-threshold most-positive-fixnum)
   (add-hook 'emacs-startup-hook
             (lambda ()
-              ;; restore the normal 32 mib threshold after startup.
-              (run-at-time "2" nil (lambda () (set 'gc-cons-threshold (* 32 1024 1024)))))))
+              ;; Restore GCMH's configured low threshold (64 MiB) after startup.
+              (run-at-time "2" nil (lambda () (set 'gc-cons-threshold (* 64 1024 1024)))))))
 
 (setq-default bidi-display-reordering 'left-to-right
               bidi-paragraph-direction 'left-to-right)
