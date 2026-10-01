@@ -1897,6 +1897,34 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
       "Remote/TRAMP buffer source for `consult-buffer'.")
     (add-to-list 'consult-buffer-sources 'consult--source-tramp-buffer 'append)
 
+    ;; Display project-relative paths while retaining buffer identities.
+    ;; Use full paths for collisions because Vertico drops duplicate strings.
+    (defun my/consult-buffer-display-name (buffer)
+      "Return BUFFER's file path relative to its project, or its name."
+      (let ((file (buffer-local-value 'buffer-file-name buffer))
+            (dir (buffer-local-value 'default-directory buffer)))
+        (or (and file
+                 (not (file-remote-p file))
+                 (when-let* ((project (project-current nil dir)))
+                   (file-relative-name file (project-root project))))
+            (buffer-name buffer))))
+
+    (define-advice consult--buffer-query (:around (orig &rest args) my/project-paths)
+      (if (not (eq (plist-get args :as) #'consult--buffer-pair))
+          (apply orig args)
+        (let* ((buffers (apply orig (plist-put (copy-sequence args) :as #'identity)))
+               (names (mapcar #'my/consult-buffer-display-name buffers))
+               (counts (make-hash-table :test #'equal)))
+          (dolist (name names)
+            (cl-incf (gethash name counts 0)))
+          (cl-mapcar (lambda (buffer name)
+                       (let ((file (buffer-local-value 'buffer-file-name buffer)))
+                         (cons (cond ((= (gethash name counts) 1) name)
+                                     (file (abbreviate-file-name file))
+                                     (t (buffer-name buffer)))
+                               buffer)))
+                     buffers names))))
+
     (after! (evil)
             ;; not sure why this was set here, it fucks up returning to project
             ;; buffer after lsp-goto-implementation and evil-goto-definition
