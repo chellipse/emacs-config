@@ -1711,6 +1711,25 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
     :demand t
     :after no-littering
     :config
+    ;; Exclude externally generated buffers. Unlike
+    ;; `undo-tree-incompatible-major-modes', include derived modes so comint
+    ;; covers shell/agent-shell and magit-mode covers all Magit buffers.
+    (defvar my/undo-tree-excluded-modes
+      '(comint-mode eshell-mode vterm-mode term-mode magit-mode
+        w3m-mode eww-mode special-mode)
+      "Major modes excluded from `undo-tree-mode', including derived modes.")
+    (define-advice turn-on-undo-tree-mode (:before-until (&rest _) my/excluded)
+      (apply #'derived-mode-p my/undo-tree-excluded-modes))
+
+    ;; Evil's u/C-r call undo-tree directly and reject buffers where it is
+    ;; disabled. Bypass that check and use built-in undo/redo in those buffers.
+    (define-advice undo-tree-undo (:around (orig &optional arg) my/fallback)
+      (if undo-tree-mode (funcall orig arg) (undo-only arg)))
+    (define-advice undo-tree-redo (:around (orig &optional arg) my/fallback)
+      (if undo-tree-mode (funcall orig arg) (undo-redo arg)))
+    (define-advice evil--check-undo-system (:before-until () my/fallback)
+      (not (bound-and-true-p undo-tree-mode)))
+
     (global-undo-tree-mode 1)
     (setq undo-tree-auto-save-history t
           undo-tree-history-directory-alist
