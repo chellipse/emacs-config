@@ -1135,7 +1135,7 @@ Return non-nil if the text already ended with one (or is empty)."
 ** Frame Alpha
 #+begin_src emacs-lisp
   (setq frame-alpha-param (if (eq system-type 'darwin) 'alpha 'alpha-background))
-  (setq default-frame-alpha 95)
+  (setq default-frame-alpha 80)
   (add-to-list 'default-frame-alist `(,frame-alpha-param . ,default-frame-alpha))
 
   (defvar my/frame-alpha-step 5
