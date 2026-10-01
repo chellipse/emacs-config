@@ -438,10 +438,19 @@ a shell, a compiler error list, or an agent prompt."
   ;; Suggestions are still reachable with C-n / down. Keyed on the prompt's
   ;; history variable so it only affects `eww', not other minibuffers.
   ;; (M-RET / `vertico-exit-input' does the same ad hoc in any minibuffer.)
+  ;;
+  ;; Preserve visit order in the shared EWW/w3m history. Prescient tracks
+  ;; prompt selections only, omitting followed links and newly typed URLs;
+  ;; disable its sorting and tracking for this prompt.
   (defun my/eww-prompt-preselect-input ()
-    "In the EWW URL prompt, preselect the typed input rather than a candidate."
+    "Preselect typed input and preserve visit order in EWW/w3m URL prompts."
     (when (eq minibuffer-history-variable 'eww-prompt-history)
-      (setq-local vertico-preselect 'prompt)))
+      (setq-local vertico-preselect 'prompt
+                  vertico-sort-function nil)
+      (remove-hook 'post-command-hook
+                   #'vertico-prescient--remember-inserted-candidate t)
+      (remove-hook 'minibuffer-exit-hook
+                   #'vertico-prescient--remember-exited-candidate t)))
   (add-hook 'minibuffer-setup-hook #'my/eww-prompt-preselect-input)
 
   (savehist-mode 1)
