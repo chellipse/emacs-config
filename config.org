@@ -919,6 +919,164 @@ family is the one `refresh-global-font-size' sets.")
   (setq frame-resize-pixelwise t
         window-resize-pixelwise t)
 #+end_src
+** Merge disk changes
+Auto-revert skips modified buffers. =my/merge-disk-changes= merges unsaved edits
+with disk changes, reconstructing the base from undo history instead of storing
+a snapshot. The =(t . MODTIME)= entry identifies the last synchronized state;
+undo-tree stores it in a node's changeset.
+
+Apply the disk version as an unmodified state, then the merged edits as a
+separate undo step. One undo exposes the disk version and preserves a base for
+subsequent merges. Conflicts use diff3 markers and =smerge-mode=.
+#+begin_src emacs-lisp
+  (defun my/merge--sync-marker-p (entry)
+    "Non-nil if undo ENTRY marks the state matching the visited file's modtime."
+    (and (eq (car-safe entry) t)
+         (ignore-errors (time-equal-p (cdr entry) (visited-file-modtime)))))
+
+  (defun my/merge--edits-since-sync ()
+    "Return undo entries restoring this buffer's last synchronized disk state.
+  Signal a `user-error' if undo history no longer reaches that state."
+    (let ((entries nil) (found nil))
+      (if (bound-and-true-p undo-tree-mode)
+          (progn
+            (undo-list-transfer-to-tree)
+            ;; Each node's changeset undoes the transition from its parent.
+            (let ((node (undo-tree-current buffer-undo-tree)))
+              (while (and node (not found))
+                (let ((changeset (undo-tree-node-undo node)))
+                  (setq entries (append entries (copy-sequence changeset))
+                        found (seq-some #'my/merge--sync-marker-p changeset)
+                        node (undo-tree-node-previous node))))))
+        (let ((list buffer-undo-list))
+          (while (and (consp list) (not found))
+            (push (car list) entries)
+            (setq found (my/merge--sync-marker-p (car list))
+                  list (cdr list)))
+          (setq entries (nreverse entries))))
+      (unless found
+        (user-error "Undo history no longer reaches the version last read from disk"))
+      ;; Drop boundaries that would stop `primitive-undo' early and marker
+      ;; adjustments that would move the source buffer's markers. Undo-tree
+      ;; represents these markers as (undo-tree-idN . ADJUSTMENT); neither
+      ;; form affects text.
+      (seq-remove (lambda (e)
+                    (or (null e)
+                        (and (consp e)
+                             (or (markerp (car e))
+                                 (and (car e) (symbolp (car e)) (not (eq (car e) t))
+                                      (numberp (cdr e)))))))
+                  entries)))
+
+  (defun my/merge--dedupe-sync-markers ()
+    "Keep only the oldest unmodified marker in the newest undo group.
+  `replace-buffer-contents' can add a mid-replacement marker whose undo
+  creates a redo entry that incorrectly marks the buffer unmodified."
+    (let* ((group (seq-take-while #'identity buffer-undo-list))
+           (markers (seq-filter (lambda (e) (eq (car-safe e) t)) group)))
+      (when (cdr markers)
+        (let ((keep (car (last markers))))
+          (setq buffer-undo-list
+                (append (seq-remove (lambda (e) (and (eq (car-safe e) t)
+                                                     (not (eq e keep))))
+                                    group)
+                        (nthcdr (length group) buffer-undo-list)))))))
+
+  (defun my/merge--write (buffer file)
+    "Write BUFFER's text to FILE losslessly, ending it with a newline.
+Return non-nil if the text already ended with one (or is empty)."
+    (with-current-buffer buffer
+      (save-restriction
+        (widen)
+        (let ((coding-system-for-write 'utf-8-emacs-unix)
+              (newline (or (= (point-min) (point-max))
+                           (eq (char-before (point-max)) ?\n))))
+          (write-region nil nil file nil 'silent)
+          ;; diff3 requires a final newline to separate text from conflict markers.
+          (unless newline
+            (write-region "\n" nil file t 'silent))
+          newline))))
+
+  (defun my/merge-disk-changes ()
+    "Three-way merge this buffer's unsaved edits with the file's disk version.
+  Reconstruct the base from undo history. Conflicts use diff3 markers and
+  enable `smerge-mode'."
+    (interactive)
+    (unless buffer-file-name
+      (user-error "Buffer isn't visiting a file"))
+    (when (my/encrypted-file-buffer-p)
+      (user-error "Won't merge an encrypted file: diff3 needs plaintext copies"))
+    (unless (file-exists-p buffer-file-name)
+      (user-error "File no longer exists on disk"))
+    (cond
+     ((verify-visited-file-modtime)
+      (message "File is unchanged on disk; nothing to merge"))
+     ((not (buffer-modified-p))
+      (revert-buffer t t t)
+      (message "No unsaved edits; reverted to the disk version"))
+     (t
+      (save-restriction
+        (widen)
+        (let* ((edits (my/merge--edits-since-sync))
+               (disk-time (file-attribute-modification-time
+                           (file-attributes buffer-file-name)))
+               (dir (or (getenv "XDG_RUNTIME_DIR") temporary-file-directory))
+               (mine (make-temp-file (expand-file-name "merge-mine-" dir)))
+               (base (make-temp-file (expand-file-name "merge-base-" dir)))
+               (theirs (make-temp-file (expand-file-name "merge-disk-" dir)))
+               (base-buf (generate-new-buffer " *merge base*" t))
+               (disk-buf (generate-new-buffer " *merge disk*" t))
+               (merged-buf (generate-new-buffer " *merge result*" t))
+               (orig (current-buffer))
+               nl-mine nl-base nl-disk status conflicts)
+          (unwind-protect
+              (progn
+                ;; Reconstruct in a scratch buffer to preserve source text and history.
+                (with-current-buffer base-buf
+                  (insert-buffer-substring-no-properties orig)
+                  (condition-case err
+                      (primitive-undo 1 edits)
+                    (error (user-error "Couldn't rebuild the disk version from undo: %s"
+                                       (error-message-string err)))))
+                (with-current-buffer disk-buf
+                  (let ((coding-system-for-read
+                         (buffer-local-value 'buffer-file-coding-system orig)))
+                    (insert-file-contents (buffer-local-value 'buffer-file-name orig))))
+                (setq nl-mine (my/merge--write orig mine)
+                      nl-base (my/merge--write base-buf base)
+                      nl-disk (my/merge--write disk-buf theirs))
+                (with-current-buffer merged-buf
+                  (let ((coding-system-for-read 'utf-8-emacs-unix))
+                    (setq status (call-process "diff3" nil (list t nil) nil "-m"
+                                               "-L" "buffer" "-L" "base" "-L" "disk"
+                                               mine base theirs)))
+                  ;; Use the disk's final-newline state unless the buffer changed
+                  ;; it from the base. Preserve diff3's newline on conflicts.
+                  (when (and (eq status 0)
+                             (not (if (eq nl-mine nl-base) nl-disk nl-mine))
+                             (eq (char-before (point-max)) ?\n))
+                    (goto-char (point-max))
+                    (delete-char -1)))
+                (unless (memq status '(0 1))
+                  (user-error "diff3 failed (exit %s)" status))
+                ;; Record the disk version as the synchronized undo state.
+                (replace-buffer-contents disk-buf 1.0)
+                (set-visited-file-modtime disk-time)
+                (set-buffer-modified-p nil)
+                (undo-boundary)
+                ;; Keep the merged edits in a separate undo step.
+                (replace-buffer-contents merged-buf 1.0)
+                (setq conflicts (= status 1)))
+            (mapc #'delete-file (list mine base theirs))
+            (mapc #'kill-buffer (list base-buf disk-buf merged-buf)))
+          (if (not conflicts)
+              (message "Merged disk changes%s"
+                       (if (buffer-modified-p) " under your edits" "; no edits of yours remain"))
+            (smerge-mode 1)
+            (goto-char (point-min))
+            (smerge-next)
+            (message "Merge conflicts: resolve with smerge (upper = buffer, lower = disk), then save")))))))
+#+end_src
 ** Popup Frame Manager
 #+begin_src emacs-lisp
   (defvar popup-frame-name "*popup-frame*")
