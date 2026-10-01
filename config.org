@@ -3211,6 +3211,17 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
         (let ((after (count-lines (point-min) (point-max))))
           (message "Trimmed %d lines, kept %d" (- before after) after))))
 
+    ;; Rendering retains output and text properties in undo history, which
+    ;; can exceed `undo-outer-limit' and discard prompt edits. Agent-shell
+    ;; resets undo to prompt input after each turn. Default rendering to
+    ;; :no-undo, appending the keyword so explicit values take precedence.
+    (dolist (fn '(agent-shell-ui-update-fragment
+                  agent-shell-ui-update-text
+                  agent-shell-ui-delete-fragment
+                  agent-shell-ui-set-group-collapsed-by-id))
+      (advice-add fn :filter-args (lambda (args) (append args '(:no-undo t)))
+                  '((name . my/no-undo))))
+
     ;; Keep a one-line minimum margin; ultra-scroll temporarily zeroes it
     ;; during trackpad scrolling (see Scroll).
     (add-hook 'agent-shell-mode-hook
