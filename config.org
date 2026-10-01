@@ -1184,18 +1184,30 @@ Return non-nil if the text already ended with one (or is empty)."
   (add-hook 'emacs-startup-hook #'my/scratch-file-backed)
 #+end_src
 ** Frame Title
-ActivityWatch categorizes windows by title, so include the projectile project
-name: file buffers become attributable per-project the way Claude Agent
-buffers and terminals already are.
+Include the Projectile project name for ActivityWatch attribution. For w3m/eww,
+use the page title and omit the launch directory's unrelated project. During
+minibuffer input, retain the originating window's buffer title.
 #+begin_src emacs-lisp
-  (setq frame-title-format
-        '("%b"
-          (:eval (let ((p (and (fboundp 'projectile-project-name)
-                               (projectile-project-name))))
-                   ;; projectile returns "-" outside any project
-                   (when (and p (not (string= p "-")))
-                     (concat " — " p))))
-          " — Emacs"))
+  (defun my/frame-title ()
+    (with-current-buffer (window-buffer (or (minibuffer-selected-window)
+                                            (selected-window)))
+      (let ((page (pcase major-mode
+                    ('w3m-mode (bound-and-true-p w3m-current-title))
+                    ('eww-mode (plist-get (bound-and-true-p eww-data) :title))))
+            (p (and (not (memq major-mode '(w3m-mode eww-mode)))
+                    (fboundp 'projectile-project-name)
+                    (projectile-project-name))))
+        ;; Escape % because the result is interpreted as a mode-line construct.
+        (string-replace
+         "%" "%%"
+         (concat (when (and page (not (string-empty-p page)))
+                   (concat page " — "))
+                 (buffer-name)
+                 ;; projectile returns "-" outside any project
+                 (when (and p (not (string= p "-")))
+                   (concat " — " p))
+                 " — Emacs")))))
+  (setq frame-title-format '(:eval (my/frame-title)))
 #+end_src
 ** Line Numbers
 #+begin_src emacs-lisp
