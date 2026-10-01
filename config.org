@@ -2782,6 +2782,19 @@ keep this before-save-hook guard even with the init.el fix."
     ;; binding. S-SPC, C-f, and C-d retain page navigation.
     (map! :n w3m-mode-map "SPC" nil)
 
+    ;; w3m's colored tab specs omit PGTK, leaving a white bar. Inherit theme
+    ;; faces for tab backgrounds, selection, loading, and unseen states.
+    (pcase-dolist (`(,face . ,parents)
+                   '((w3m-tab-background            tab-line)
+                     (w3m-tab-selected-background   tab-line)
+                     (w3m-tab-selected              bold nerd-icons-orange
+                                                    tab-line-tab-current)
+                     (w3m-tab-selected-retrieving   error tab-line-tab-current)
+                     (w3m-tab-unselected            tab-line-tab-inactive)
+                     (w3m-tab-unselected-unseen     shadow tab-line-tab-inactive)
+                     (w3m-tab-unselected-retrieving error tab-line-tab-inactive)))
+      (face-spec-set face `((t :inherit ,parents)) 'face-defface-spec))
+
     ;; record every rendered page, not just typed urls, like `my/eww-record-url'
     (add-hook 'w3m-display-hook
               (lambda (url)
