@@ -3320,6 +3320,10 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
 
           ;; `mm-w3m-safe-url-regexp' restricts images to cid: parts.
           mm-text-html-renderer 'w3m
+          ;; Without CSS sizing, w3m renders oversized mail images. Hide them
+          ;; by default; T shows all images and t shows the image at point.
+          ;; This changes only the mail buffer's local w3m setting.
+          mm-html-inhibit-images t
 
           ;; send through bridge smtp with msmtp, which reads the password from
           ;; pass. emacs does not handle the credential.
