@@ -909,6 +909,13 @@ family is the one `refresh-global-font-size' sets.")
   (setq auto-revert-verbose nil)   ; no "Reverting buffer..." spam
   (global-auto-revert-mode 1)
 
+  ;; Fine-grained reverts avoid recording unchanged text between distant
+  ;; edits in undo history and preserve point and marks. Fall back to the
+  ;; default replacement when diffing exceeds 0.5 seconds.
+  (setq revert-buffer-insert-file-contents-function
+        #'revert-buffer-insert-file-contents-delicately
+        revert-buffer-with-fine-grain-max-seconds 0.5)
+
   (setq frame-resize-pixelwise t
         window-resize-pixelwise t)
 #+end_src
