@@ -3563,9 +3563,11 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
     :config
     (setq mu4e-attachment-dir (expand-file-name "~/Downloads")
 
-          ;; refresh manually to sync mail and update the index.
+          ;; Sync and reindex every five minutes without displaying updates;
+          ;; U still triggers an immediate sync.
           mu4e-get-mail-command "mbsync proton"
-          mu4e-update-interval nil
+          mu4e-update-interval 300
+          mu4e-index-update-in-background t
           mu4e-index-update-error-warning t
 
           ;; rename files on flag changes to prevent mbsync uid collisions.
@@ -3616,6 +3618,18 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
     ;; changes. Closing the draft already restores its window's previous buffer.
     (remove-hook 'mu4e-compose-post-hook
                  #'mu4e-compose-post-restore-window-configuration)
+
+    (defun my/mu4e-bury ()
+      "Bury the mu4e main buffer, leaving mu4e running."
+      (interactive)
+      (mu4e-quit 'bury))
+
+    ;; Bury on q to retain the server and update timer; quit on Q.
+    ;; Evil binds C-u to scrolling, preventing C-u q. Q replaces
+    ;; evil-collection's `mu4e-search-query'.
+    (map! :n mu4e-main-mode-map
+          "q" #'my/mu4e-bury
+          "Q" #'mu4e-quit)
 
     ;; Fold threads by default so per-run Gerrit/Maloo updates collapse to one
     ;; line. Folding stops at the first unread message, keeping new results
