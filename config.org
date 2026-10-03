@@ -1448,6 +1448,36 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     (defun my/window-move-right ()
       "Shift the current window one slot to the right."
       (interactive) (my/window-swap-in-direction 'right))
+
+    ;; Rebalance neighbouring windows on selection to fit 80 text columns
+    ;; plus line numbers without capping font size. Skip side windows and
+    ;; windows already wide enough.
+    (defvar my/fit-columns 80
+      "Target text width for `my/fit-selected-window-mode', in columns.")
+
+    (defun my/fit-selected-window (frame)
+      "Widen FRAME's selected window to `my/fit-columns', if its neighbours can spare it."
+      (let ((win (frame-selected-window frame)))
+        (unless (or (window-minibuffer-p win)
+                    (window-parameter win 'window-side)
+                    (frame-parent frame))
+          (let* ((numbers (if (buffer-local-value 'display-line-numbers (window-buffer win))
+                              (with-selected-window win (line-number-display-width 'columns))
+                            0))
+                 ;; Account for text scaling and the continuation glyph.
+                 (missing (- (+ my/fit-columns numbers) (window-max-chars-per-line win))))
+            (when (> missing 0)
+              (let ((delta (window-resizable win (* missing (window-font-width win)) t nil t)))
+                (when (> delta 0)
+                  (window-resize win delta t nil t))))))))
+
+    (define-minor-mode my/fit-selected-window-mode
+      "Widen the selected window to `my/fit-columns' using neighbouring space."
+      :global t
+      (if my/fit-selected-window-mode
+          (add-hook 'window-selection-change-functions #'my/fit-selected-window)
+        (remove-hook 'window-selection-change-functions #'my/fit-selected-window)))
+    (my/fit-selected-window-mode 1)
     (map-leader! :n '(global evil-mode-map) "SPC"
                  ";" #'eval-expression
                  ":" #'eval-last-sexp
