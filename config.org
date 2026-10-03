@@ -3856,7 +3856,11 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
     (ignore-errors
       (recentf-load-list))
     ;; Save periodically (every 20 min) instead of only on exit
-    (run-at-time nil (* 20 60) 'recentf-save-list))
+    (run-at-time nil (* 20 60) 'recentf-save-list)
+    ;; Log recentf save messages only to *Messages*.
+    (define-advice recentf-save-list (:around (orig &rest args) my/quiet)
+      (let ((inhibit-message t))
+        (apply orig args))))
 #+end_src
 ** GC
 #+begin_src emacs-lisp
