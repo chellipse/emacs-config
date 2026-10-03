@@ -266,6 +266,16 @@ determine the exact padding."
    ;;;; solaire-mode
    (solaire-mode-line-face
     :background modeline-bg :foreground modeline-fg
-    :box (if -modeline-pad `(:line-width ,-modeline-pad :color ,modeline-bg)))))
+    :box (if -modeline-pad `(:line-width ,-modeline-pad :color ,modeline-bg)))
+   ;;;; treemacs
+   ;; Green syntax hues obscure doom-themes' Git states. Use the VC accents
+   ;; shared by diff-hl and the mode line; bold distinguishes added files
+   ;; from green text.
+   (treemacs-git-modified-face  :foreground vc-modified)
+   (treemacs-git-renamed-face   :foreground vc-modified)
+   (treemacs-git-untracked-face :foreground yellow)
+   (treemacs-git-added-face     :foreground vc-added :weight 'bold)
+   (treemacs-git-conflict-face  :foreground error :weight 'bold)
+   (treemacs-git-ignored-face   :foreground comments)))
 
 ;;; my-phosphor-theme.el ends here
