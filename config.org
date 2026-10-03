@@ -2819,6 +2819,13 @@ keep this before-save-hook guard even with the init.el fix."
     ;; Allow C-w h/j/k/l to enter treemacs; `other-window' (C-f) skips it.
     (setq windmove-allow-all-windows t))
 #+end_src
+** =treemacs-nerd-icons=
+#+begin_src emacs-lisp
+  ;; Use nerd-icons consistently across the UI.
+  (use-package treemacs-nerd-icons
+    :after treemacs
+    :config (treemacs-load-theme "nerd-icons"))
+#+end_src
 ** =treemacs-evil=
 #+begin_src emacs-lisp
   (use-package treemacs-evil
@@ -2832,10 +2839,10 @@ keep this before-save-hook guard even with the init.el fix."
   (use-package treemacs-projectile
     :after (treemacs projectile))
 #+end_src
-** =treemacs-icons-dired=
+** =nerd-icons-dired=
 #+begin_src emacs-lisp
-  (use-package treemacs-icons-dired
-    :hook (dired-mode . treemacs-icons-dired-enable-once))
+  (use-package nerd-icons-dired
+    :hook (dired-mode . nerd-icons-dired-mode))
 #+end_src
 ** =treemacs-magit=
 #+begin_src emacs-lisp
