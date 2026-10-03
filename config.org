@@ -1340,7 +1340,17 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
 ** =writeroom-mode=
 #+begin_src emacs-lisp
   (use-package writeroom-mode
-    :commands (writeroom-mode writeroom-increase-width writeroom-decrease-width)
+    :commands (writeroom-mode writeroom-adjust-width)
+    :init
+    ;; Writeroom's built-in width commands use fixed two-character steps.
+    (defun my/writeroom-widen ()
+      "Widen the writing area by 10 characters."
+      (interactive)
+      (writeroom-adjust-width 10))
+    (defun my/writeroom-narrow ()
+      "Narrow the writing area by 10 characters."
+      (interactive)
+      (writeroom-adjust-width -10))
     :config
     (setq writeroom-width 120
           ;; stay a normal window instead of fullscreening the frame
@@ -1477,8 +1487,8 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
                  "w s" #'evil-window-split
                  "w v" #'evil-window-vsplit
                  ;; Zen
-                 "z i" #'writeroom-increase-width
-                 "z d" #'writeroom-decrease-width
+                 "z i" #'my/writeroom-widen
+                 "z d" #'my/writeroom-narrow
                  "z z" #'writeroom-mode)
     (map-leader! :n '(global evil-mode-map) "f"
                  "f" #'consult-buffer
