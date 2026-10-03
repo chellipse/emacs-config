@@ -2854,7 +2854,10 @@ keep this before-save-hook guard even with the init.el fix."
   (use-package w3m
     :commands w3m
     :init
-    (add-hook 'w3m-mode-hook (lambda () (display-line-numbers-mode -1)))
+    ;; The tab line supplies the title, loading state, and reading progress.
+    (add-hook 'w3m-mode-hook (lambda ()
+                               (display-line-numbers-mode -1)
+                               (setq-local mode-line-format nil)))
 
     ;; share one url history with eww (see History). savehist has restored
     ;; both variables by now, so fold w3m's into eww's once, then make w3m's
@@ -2923,6 +2926,177 @@ keep this before-save-hook guard even with the init.el fix."
                                      (with-current-buffer buf
                                        (w3m-reload-this-page)))))))))
     (add-hook 'w3m-display-hook #'my/w3m-retry-525)
+
+    ;; Tab-line progress ("READ/TOTALW PCT%") counts the main text, excluding
+    ;; navigation, notes, and comments. Extract it from cached HTML with
+    ;; rdrview (Firefox Readability in C), falling back to eww's heuristic.
+    ;; Count the whole rendered page if the extracted text cannot be located.
+    (defvar my/w3m-read-position 'window-end
+      "Where reading progress is measured: `window-end' or `point'.
+  `window-end' counts everything on screen as read, so scrolling advances it.")
+    (defvar-local my/w3m-read-gen 0
+      "Page generation counter rejecting stale rdrview results.")
+    (defvar-local my/w3m-read-table nil
+      "(LINE-STARTS . WORDS-BEFORE) vectors over the main text; last entry is its end.")
+    (defvar-local my/w3m-read-key nil
+      "(URL . TEXT-TICK) of the indexed page.
+  Avoid reindexing unchanged pages when w3m's display hook reruns on window display.")
+
+    (defun my/w3m--cached-html (url)
+      "URL's HTML from w3m's cache as a unibyte string, or nil."
+      (with-temp-buffer
+        (set-buffer-multibyte nil)
+        (when (w3m-cache-request-contents url)
+          (goto-char (point-min))
+          ;; Cached bodies retain their original gzip encoding.
+          (when (and (looking-at "\x1f\x8b") (zlib-available-p))
+            (zlib-decompress-region (point-min) (point-max)))
+          (buffer-string))))
+
+    (defun my/w3m--eww-text (html)
+      "Main text of HTML by eww's readability heuristic, or nil."
+      (require 'eww)
+      (when-let* ((dom (with-temp-buffer
+                         (insert (decode-coding-string html 'undecided))
+                         (libxml-parse-html-region (point-min) (point-max))))
+                  (body (car (dom-by-tag (eww-readable-dom dom) 'body))))
+        (dom-texts body " ")))
+
+    (defun my/w3m--locate-text (text)
+      "Return (BEG . END) of TEXT's words in the rendered page, or nil.
+  Match six-word anchors at each end, skipping up to four boundary words
+  to tolerate rendering differences such as image alt text."
+      (let* ((words (vconcat (split-string text "[^[:alnum:]]+" t)))
+             (n (length words))
+             (run 6)
+             (case-fold-search nil)
+             beg end)
+        (cl-flet ((anchor (i) (mapconcat #'regexp-quote (seq-subseq words i (+ i run))
+                                         "[^[:alnum:]]+")))
+          (when (>= n (+ run 5))
+            (save-excursion
+              (cl-loop for i below 5 until beg do
+                       (goto-char (point-min))
+                       (when (re-search-forward (anchor i) nil t)
+                         (setq beg (match-beginning 0))))
+              (cl-loop for i below 5 until end do
+                       (goto-char (point-max))
+                       (when (re-search-backward (anchor (- n run i)) nil t)
+                         (setq end (match-end 0)))))
+            (and beg end (< beg end) (cons beg end))))))
+
+    (defun my/w3m--index-words (beg end)
+      "Index the words between BEG and END into `my/w3m-read-table'.
+  Cache cumulative line counts so progress updates count only a partial line."
+      (save-excursion
+        (goto-char beg)
+        (let ((starts (list beg)) (counts (list 0)) (n 0))
+          (while (< (point) end)
+            (let ((from (point)))
+              (goto-char (min end (line-beginning-position 2)))
+              (setq n (+ n (count-words from (point))))
+              (push (point) starts)
+              (push n counts)))
+          (setq my/w3m-read-table (cons (vconcat (nreverse starts))
+                                        (vconcat (nreverse counts)))))))
+
+    (defun my/w3m-index-page (url)
+      "Find the main text of URL's rendered page and index it for reading progress."
+      (unless (equal my/w3m-read-key (cons url (buffer-chars-modified-tick)))
+        (my/w3m--index-page url)))
+
+    (defun my/w3m--index-page (url)
+      (setq my/w3m-read-table nil
+            my/w3m-read-key (cons url (buffer-chars-modified-tick)))
+      (let ((gen (cl-incf my/w3m-read-gen))
+            (buf (current-buffer))
+            (html (my/w3m--cached-html url))
+            (rdrview (executable-find "rdrview")))
+        (cl-flet ((finish (text)
+                    (when (and (buffer-live-p buf)
+                               (= gen (buffer-local-value 'my/w3m-read-gen buf)))
+                      (with-current-buffer buf
+                        (save-restriction
+                          (widen)
+                          (let ((region (or (and text (my/w3m--locate-text text))
+                                            (cons (point-min) (point-max)))))
+                            (my/w3m--index-words (car region) (cdr region))))
+                        (force-mode-line-update t)))))
+          (cond
+           ((not html) (finish nil))
+           (rdrview
+            (let* ((default-directory temporary-file-directory)
+                   (out (generate-new-buffer " *rdrview*"))
+                   (proc (make-process
+                          :name "rdrview" :buffer out :noquery t
+                          :connection-type 'pipe
+                          :coding '(utf-8 . binary)
+                          :command (list "sh" "-c" "exec \"$0\" -H -u \"$1\" 2>/dev/null"
+                                         rdrview url)
+                          :sentinel
+                          (lambda (p _)
+                            (unless (process-live-p p)
+                              (let ((text (and (zerop (process-exit-status p))
+                                               (with-current-buffer out
+                                                 (dom-texts (libxml-parse-html-region
+                                                             (point-min) (point-max))
+                                                            " ")))))
+                                (kill-buffer out)
+                                (finish (or text (my/w3m--eww-text html)))))))))
+              (process-send-string proc html)
+              (process-send-eof proc)))
+           (t (finish (my/w3m--eww-text html)))))))
+    (add-hook 'w3m-display-hook #'my/w3m-index-page)
+
+    (defun my/w3m-read-stats ()
+      "Reading progress \"READ/TOTALW PCT%\" for a w3m page, or nil elsewhere."
+      (when-let* ((table my/w3m-read-table)
+                  (win (if (eq (window-buffer) (current-buffer))
+                           (selected-window) ; the window whose tab line is drawn
+                         (get-buffer-window))))
+        (let* ((starts (car table))
+               (counts (cdr table))
+               (last (1- (length starts)))
+               (total (aref counts last))
+               (pos (max (aref starts 0)
+                         (min (aref starts last)
+                              (if (eq my/w3m-read-position 'point)
+                                  (window-point win)
+                                (window-end win)))))
+               (lo 0)
+               (hi last))
+          ;; last line starting at or before POS
+          (while (< lo hi)
+            (let ((mid (/ (+ lo hi 1) 2)))
+              (if (<= (aref starts mid) pos) (setq lo mid) (setq hi (1- mid)))))
+          (let ((read (+ (aref counts lo) (count-words (aref starts lo) pos))))
+            (format "%d/%dW %d%%" read total
+                    (if (zerop total) 100 (/ (* 100 read) total)))))))
+
+    ;; Replace w3m's tab-line filler with right-aligned reading progress;
+    ;; truncate tabs to reserve its width.
+    (define-advice w3m-tab-line (:filter-return (line) my/read-progress)
+      (if-let* ((stats (my/w3m-read-stats)))
+          (let ((stats (concat " " stats " ")))
+            (concat (truncate-string-to-width
+                     (substring line 0 -1) ; drop the filler
+                     (max 0 (- (window-total-width) (string-width stats) 2)))
+                    (propertize " " 'face 'w3m-tab-background
+                                'display `(space :align-to (- (+ right right-fringe right-margin)
+                                                              ,(string-width stats))))
+                    ;; Tab lines use mode-line formatting: escape literal %.
+                    (propertize (string-replace "%" "%%" stats) 'face 'w3m-tab-unselected)))
+        line))
+
+    ;; Force tab-line redraws on scrolling or point movement.
+    (defvar-local my/w3m-read-last nil)
+    (defun my/w3m-read-refresh ()
+      (let ((now (cons (window-start) (point))))
+        (unless (equal now my/w3m-read-last)
+          (setq my/w3m-read-last now)
+          (force-mode-line-update))))
+    (add-hook 'w3m-mode-hook
+              (lambda () (add-hook 'post-command-hook #'my/w3m-read-refresh nil t)))
 
     ;; w3m reads urls with a plain `read-from-minibuffer', so past urls only
     ;; come back one at a time with M-p. read them like eww instead: vertico
