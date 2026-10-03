@@ -3881,14 +3881,16 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
       (let ((my/gc-reason "unfocused"))
         (garbage-collect))))
 
-  ;; Report GC duration and trigger to identify collection pauses. Log only
-  ;; to *Messages* during minibuffer input to avoid obscuring the prompt.
+  ;; Report GC duration and trigger to identify collection pauses.
+  ;; Log only to *Messages* during minibuffer input and idle or unfocused
+  ;; collections to preserve prompts and avoid background echo-area updates.
   (defvar my/gc-last-elapsed gc-elapsed
     "`gc-elapsed' after the previous collection.")
 
   (defun my/gc-report ()
     "Report the last collection's duration and trigger."
-    (let ((inhibit-message (and (active-minibuffer-window) t)))
+    (let ((inhibit-message (or (member my/gc-reason '("idle" "unfocused"))
+                               (and (active-minibuffer-window) t))))
       (message "GC (%s): %.3fs" (or my/gc-reason "threshold")
                (- gc-elapsed my/gc-last-elapsed)))
     (setq my/gc-last-elapsed gc-elapsed))
