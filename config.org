@@ -506,6 +506,72 @@ family is the one `refresh-global-font-size' sets.")
   (unless (boundp 'font-size)
     (setq font-size default-font-size))
 
+  ;; Emacs simulates missing bold cuts with a fixed one-pixel overstrike
+  ;; (`overstrike' in xfaces.c), which smears glyphs. For monospace families
+  ;; with no cut heavier than medium, override bold faces with `:weight normal'.
+  ;; Overrides take precedence over theme and defface specs without changing
+  ;; other attributes. Restore previous overrides when the family changes.
+  (defvar my/fake-bold-saved nil
+    "Alist of (FACE . PREVIOUS-OVERRIDE-SPEC) for faces made non-bold.")
+
+  (defvar my/fake-bold-family nil
+    "Last family processed by `my/font-suppress-fake-bold'.")
+
+  (defun my/font-has-bold-p (family)
+    "Return non-nil if FAMILY has a cut heavier than medium (fontconfig weight 100).
+  Treat unlisted families, including generic aliases, as having bold cuts."
+    (let ((lines (ignore-errors
+                   (process-lines "fc-list"
+                                  ;; Escape fontconfig pattern syntax; - starts a size.
+                                  (concat ":family="
+                                          (replace-regexp-in-string
+                                           "[-:,\\]" "\\\\\\&" family))
+                                  "weight"))))
+      (or (null lines)
+          (seq-some (lambda (line)
+                      (seq-some (lambda (n) (> (string-to-number n) 100))
+                                (split-string line "[^0-9]+" t)))
+                    lines))))
+
+  (defun my/fake-bold--override (spec)
+    "Return override SPEC with `:weight normal' added.
+  Return nil for unsupported display clauses; nil SPEC gets a default clause."
+    (pcase spec
+      ('nil '((t :weight normal)))
+      (`((t . ,attrs))
+       ;; Old-style clauses wrap attributes in a single plist.
+       (when (and (consp (car attrs)) (null (cdr attrs)))
+         (setq attrs (car attrs)))
+       `((t ,@attrs :weight normal)))))
+
+  (defun my/font-suppress-fake-bold (&optional force)
+    "Make bold faces normal weight when `default-font-mono' has no bold cut.
+  Skip unchanged families unless FORCE is non-nil."
+    (when (or force (not (equal default-font-mono my/fake-bold-family)))
+      (setq my/fake-bold-family default-font-mono)
+      ;; Restore overrides before checking face weights.
+      (pcase-dolist (`(,face . ,spec) my/fake-bold-saved)
+        (face-spec-set face spec 'face-override-spec))
+      (setq my/fake-bold-saved nil)
+      (unless (my/font-has-bold-p default-font-mono)
+        (dolist (face (face-list))
+          (when (memq (face-attribute face :weight nil)
+                      '(semi-bold demibold bold extra-bold extrabold
+                        ultra-bold ultrabold heavy black))
+            (let* ((saved (get face 'face-override-spec))
+                   (spec (my/fake-bold--override saved)))
+              (when spec
+                (push (cons face saved) my/fake-bold-saved)
+                (face-spec-set face spec 'face-override-spec))))))))
+  (advice-add 'refresh-global-font-size :after
+              (lambda (&rest _) (my/font-suppress-fake-bold))
+              '((name . my/fake-bold)))
+  ;; Recheck face weights after theme changes.
+  (add-hook 'enable-theme-functions
+            (lambda (theme)
+              (unless (eq theme 'user)
+                (my/font-suppress-fake-bold t))))
+
   (my/apply-fonts)
 
   ;; The daemon gets this far with no display, so the families above were
