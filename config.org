@@ -1880,6 +1880,18 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
           undo-tree-strong-limit (* 12 1024 1024)
           undo-tree-outer-limit  (* 24 1024 1024))
 
+    ;; Org source fontification records text property changes
+    ;; (nil PROP VAL BEG . END) containing syntax tables. undo-tree serializes
+    ;; the shared table per entry, producing 2.7 GB of history for config.org.
+    ;; Property changes do not shift positions; omit them from saved history
+    ;; without affecting text undo. In-session undo retains them.
+    (defun my/undo-tree-drop-property-changes (element)
+      "Return nil for text property change ELEMENT, else ELEMENT."
+      (unless (and (consp element) (null (car element)))
+        element))
+    (add-hook 'undo-tree-pre-save-element-functions
+              #'my/undo-tree-drop-property-changes)
+
     ;; undo-tree writes inserted and deleted text under var/undo-tree-hist/
     ;; without encryption handlers. block history saves and loads for encrypted
     ;; buffers. checking the handler in both functions avoids dependence on hook
