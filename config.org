@@ -3810,7 +3810,7 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
           message-sendmail-extra-arguments '("--read-envelope-from")
 
           user-mail-address "pumpkinbiscuit@protonmail.com"
-          user-full-name "Chell Laszlo"
+          user-full-name "Chell L."
 
           ;; Reuse the originating window for headers, messages, and drafts.
           ;; Unlike nil, 'single-window replaces the main buffer with a
