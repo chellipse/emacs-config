@@ -1705,6 +1705,13 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
         (goto-char new-start)
         (vertical-motion row win)))
 
+    ;; evil-collection binds C-w directly to `evil-window-map' in magit and
+    ;; other modes, shadowing the overrides below. Apply them to that map too.
+    (dolist (binding '(("H" . my/window-move-left)
+                       ("L" . my/window-move-right)
+                       ("n" . transpose-frame)
+                       ("=" . balance-windows-area)))
+      (define-key evil-window-map (kbd (car binding)) (cdr binding)))
     (map! :n '(global evil-mode-map)
           "C-w n" #'transpose-frame
           "C-w =" #'balance-windows-area
