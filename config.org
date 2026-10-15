@@ -2401,6 +2401,31 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
 #+begin_src emacs-lisp
   (add-to-list 'auto-mode-alist '("\\.lua\\'" . lua-ts-mode))
 #+end_src
+** =autoconf-mode=
+#+begin_src emacs-lisp
+  ;; Use autoconf-mode for .m4 macros (aclocal, Lustre's config/). m4-mode
+  ;; pairs backticks and apostrophes as brackets, breaking paren matching
+  ;; on shell strings and prose. autoconf-mode pairs only [] and ().
+  (add-to-list 'auto-mode-alist '("\\.m4\\'" . autoconf-mode))
+
+  ;; Treat unmatched ) in shell `case' arms (`yes)', `*)', `linux*)') as
+  ;; punctuation while preserving autoconf-mode's `dnl' handling. Match only
+  ;; single space-free patterns to exclude wrapped C argument lists in tests.
+  (defconst my/autoconf-case-arm-re
+    "^[ \t]*[^][()#,;\"' \t\n]+\\()\\)\\(?:[ \t]\\|$\\)"
+    "A shell `case' arm; group 1 is its closing paren.")
+
+  (defun my/autoconf-case-arms ()
+    (let ((orig syntax-propertize-function))
+      (setq-local syntax-propertize-function
+                  (lambda (start end)
+                    (when orig (funcall orig start end))
+                    (goto-char start)
+                    (while (re-search-forward my/autoconf-case-arm-re end t)
+                      (put-text-property (match-beginning 1) (match-end 1)
+                                         'syntax-table (string-to-syntax ".")))))))
+  (add-hook 'autoconf-mode-hook #'my/autoconf-case-arms)
+#+end_src
 ** =c/c++-ts-mode=
 #+begin_src emacs-lisp
   ;; use the tree-sitter modes wherever emacs would pick cc-mode. c-or-c++
