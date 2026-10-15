@@ -3872,8 +3872,10 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
                    :query "flag:unread AND NOT flag:trashed"      :key ?u)
             (:name "Week"
                    :query "date:7d..now"                          :key ?w)
-            (:name "Letters"
-                   :query "maildir:/proton/Folders/Newsletters"   :key ?n)
+            (:name "Drafts"
+                   :query "maildir:/proton/Drafts"                :key ?d)
+            (:name "Sent"
+                   :query "maildir:/proton/Sent"                  :key ?s)
             )))
 
   (map-leader! :n '(global evil-mode-map) "SPC"
