@@ -2762,6 +2762,47 @@ keep this before-save-hook guard even with the init.el fix."
 #+begin_src emacs-lisp
   (use-package magit
     :commands magit
+    :init
+    ;; Offer Projectile's Git repositories, defaulting to the current one.
+    ;; "Other directory…" or C-u prompts for an arbitrary repository.
+    (defun my/magit-read-repo ()
+      "Read a Git repository and return its top-level directory."
+      (let* ((here (magit-toplevel))
+             (other "Other directory…")
+             (repos (delete-dups
+                     (delq nil
+                           (cons (and here (abbreviate-file-name here))
+                                 (seq-filter
+                                  (lambda (dir)
+                                    (and (not (file-remote-p dir))
+                                         (file-exists-p (expand-file-name ".git" dir))))
+                                  (bound-and-true-p projectile-known-projects))))))
+             (choice (if current-prefix-arg
+                         other
+                       (completing-read "Repo: " (append repos (list other))
+                                        nil t nil nil (car repos))))
+             (dir (expand-file-name (if (equal choice other)
+                                        (read-directory-name "Repo: ")
+                                      choice))))
+        (or (magit-toplevel dir)
+            (user-error "Not a git repository: %s" (abbreviate-file-name dir)))))
+
+    (defun my/magit-show-commit-in-repo (repo rev)
+      "Show commit REV from the Git repository at REPO.
+  Interactively, select a repository, then a branch or commit."
+      (interactive
+       (progn
+         (require 'magit)
+         (let* ((repo (my/magit-read-repo))
+                (default-directory repo))
+           (list repo (magit-read-branch-or-commit "Show commit")))))
+      (require 'magit)
+      (let ((default-directory
+             (or (magit-toplevel (expand-file-name repo))
+                 (user-error "Not a git repository: %s" repo))))
+        (unless (magit-rev-verify-commit rev)
+          (user-error "No commit %s in %s" rev (abbreviate-file-name default-directory)))
+        (magit-show-commit rev)))
     :custom
     ;; syntax-highlight hunks with the file's own major mode (magit 4.6+).
     ;; 'all fontifies every hunk immediately (synchronous); set to t to only
