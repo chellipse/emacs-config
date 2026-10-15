@@ -1208,6 +1208,13 @@ Return non-nil if the text already ended with one (or is empty)."
   (setq default-frame-alpha 80)
   (add-to-list 'default-frame-alist `(,frame-alpha-param . ,default-frame-alpha))
 
+  ;; Child frames (lsp-ui doc, corfu, posframe) inherit `default-frame-alist'
+  ;; alpha. Keep them opaque for legible text over the parent frame.
+  (defun my/opaque-child-frame (frame)
+    (when (frame-parent frame)
+      (set-frame-parameter frame frame-alpha-param 100)))
+  (add-hook 'after-make-frame-functions #'my/opaque-child-frame)
+
   (defvar my/frame-alpha-step 5
     "Percentage step for `my/frame-alpha-adjust'.")
   (defvar my/frame-alpha-min 10
