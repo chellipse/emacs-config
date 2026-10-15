@@ -3266,6 +3266,45 @@ keep this before-save-hook guard even with the init.el fix."
     (add-hook 'w3m-mode-hook
               (lambda () (add-hook 'post-command-hook #'my/w3m-read-refresh nil t)))
 
+    ;; Extract article text from w3m's cached HTML with rdrview. Open it in
+    ;; the same tab so H returns to the full page and reading progress covers
+    ;; only the article.
+    (defun my/w3m-reader-view ()
+      "Show the current w3m page's article text using rdrview."
+      (interactive)
+      (unless (derived-mode-p 'w3m-mode) (user-error "Not in a w3m buffer"))
+      (require 'xml)
+      (let* ((url w3m-current-url)
+             (rdrview (or (executable-find "rdrview")
+                          (user-error "rdrview isn't installed")))
+             (html (or (my/w3m--cached-html url)
+                       (user-error "Page isn't in w3m's cache; reload it (g r)")))
+             (title (xml-escape-string (or w3m-current-title url)))
+             (file (expand-file-name (format "w3m-reader-%s.html" (md5 url))
+                                     (or (getenv "XDG_RUNTIME_DIR")
+                                         temporary-file-directory))))
+        (with-temp-buffer
+          (set-buffer-multibyte nil)
+          (insert html)
+          (let ((coding-system-for-read 'binary)
+                (coding-system-for-write 'binary))
+            (unless (eql 0 (call-process-region (point-min) (point-max) rdrview
+                                                t '(t nil) nil
+                                                "-T" "title,body" "-H" "-u" url))
+              (user-error "rdrview found no main text on this page")))
+          ;; Wrap rdrview's HTML fragment in a titled document.
+          (goto-char (point-min))
+          (insert (encode-coding-string
+                   (format "<!DOCTYPE html><html><head><meta charset=\"utf-8\">\
+  <title>Reader: %s</title></head><body>\n" title)
+                   'utf-8))
+          (goto-char (point-max))
+          (insert "\n</body></html>\n")
+          (let ((coding-system-for-write 'binary))
+            (write-region nil nil file nil 'silent)))
+        (w3m-goto-url (concat "file://" file))))
+    (map! :n w3m-mode-map "R" #'my/w3m-reader-view)
+
     ;; w3m reads urls with a plain `read-from-minibuffer', so past urls only
     ;; come back one at a time with M-p. read them like eww instead: vertico
     ;; lists the shared history, and since the history variable is
