@@ -4243,6 +4243,25 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
     ;; restore shift-j to evil-join. the shift theme binds it to org-shiftdown
     ;; for heading priorities and list movement; shift-down remains available.
     (evil-define-key 'normal 'evil-org-mode (kbd "J") #'evil-join)
+    ;; the todo theme binds T and M-t to plain `org-insert-todo-heading', which
+    ;; inserts right after the current line, splitting the entry from its body.
+    ;; insert after the subtree instead, like C-RET. org has no respect-content
+    ;; todo subheading command, so demote the respect-content heading, making
+    ;; it the last child.
+    (defun my/org-insert-todo-subheading-respect-content (&optional arg)
+      "Insert a TODO subheading after the current subtree.
+  ARG is passed to `org-insert-todo-heading-respect-content'."
+      (interactive "P")
+      (org-insert-todo-heading-respect-content arg)
+      (org-do-demote))
+    ;; the heading theme also rebinds O to insert a heading below the current
+    ;; line; restore the base theme's open-above, the counterpart of o.
+    (evil-define-key 'normal 'evil-org-mode
+      (kbd "O") #'evil-org-open-above
+      (kbd "T") (evil-org-define-eol-command
+                 org-insert-todo-heading-respect-content)
+      (kbd "M-t") (evil-org-define-eol-command
+                   my/org-insert-todo-subheading-respect-content))
     (require 'evil-org-agenda)
     (evil-org-agenda-set-keys))
 #+end_src
