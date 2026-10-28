@@ -455,6 +455,8 @@ a shell, a compiler error list, or an agent prompt."
 
   (savehist-mode 1)
   (add-to-list 'savehist-additional-variables 'eww-prompt-history)
+  ;; per-project last compile commands, defined under Langs > prog-mode.
+  (add-to-list 'savehist-additional-variables 'my-compile-last-commands)
 #+end_src
 * UI
 ** Font
@@ -2261,39 +2263,44 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
   (defvar my-compile-last-commands (make-hash-table :test 'equal)
     "Hash table mapping project roots to their last compile commands.")
 
+  (defvar-local my-compile-project-root nil
+    "Project root of the `my-compile' run shown in this compilation buffer.")
+
+  (defun my-compile--project-root ()
+    "Return the project to compile for, or signal a `user-error'.
+  A compilation buffer started by `my-compile' reuses that run's project."
+    (or my-compile-project-root
+        (projectile-project-root)
+        (user-error "Not in a project")))
+
   (defun my-compile (cmd)
-    "Compile with CMD, prepending 'cd PROJECT_ROOT && ' if in a projectile project."
+    "Compile with CMD from the current project's root."
     (interactive
      (list (read-shell-command "Compile command: "
-                               (gethash (projectile-project-root) my-compile-last-commands ""))))
-
-    (let ((project-root (projectile-project-root)))
-      ;; Store the original command (before modifications) for this project
-      (when project-root
-        (puthash project-root cmd my-compile-last-commands))
-
-      ;; Modification pass: add project root cd
-      (when project-root
-        (setq cmd (format "cd %s && %s" project-root cmd))))
-
-    ;; Modification pass: add --color=always for cargo commands if ansi-color filter is enabled
-    (when (and (string-match-p "cargo" cmd)
-               (memq 'ansi-color-compilation-filter compilation-filter-hook))
-      (setq cmd (concat cmd " --color=always")))
-
-    ;; Final compile
-    (compile cmd))
+                               (gethash (my-compile--project-root)
+                                        my-compile-last-commands ""))))
+    (let* ((project-root (my-compile--project-root))
+           ;; store the command as typed, before the modifications below
+           (_ (puthash project-root cmd my-compile-last-commands))
+           (cmd (format "cd %s && %s" (shell-quote-argument project-root) cmd)))
+      ;; add --color=always for cargo commands if the ansi-color filter is on
+      (when (and (string-match-p "cargo" cmd)
+                 (memq 'ansi-color-compilation-filter compilation-filter-hook))
+        (setq cmd (concat cmd " --color=always")))
+      (with-current-buffer (compile cmd)
+        (setq my-compile-project-root project-root))))
 
   (defun my-recompile ()
     "Recompile using the last command for the current project."
     (interactive)
-    (let* ((project-root (projectile-project-root))
-           (last-cmd (gethash project-root my-compile-last-commands)))
-      (if last-cmd
-          (my-compile last-cmd)
-        (call-interactively #'my-compile))))
+    (if-let* ((last-cmd (gethash (my-compile--project-root)
+                                 my-compile-last-commands)))
+        (my-compile last-cmd)
+      (call-interactively #'my-compile)))
 
-  (map-leader! :n prog-mode-map "SPC"
+  ;; global, so they also work from agent-shell and *compilation* buffers;
+  ;; outside a project they signal an error.
+  (map-leader! :n '(global evil-mode-map) "SPC"
                "c x" #'my-compile
                "c r" #'compile
                "c c" #'my-recompile)
