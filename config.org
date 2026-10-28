@@ -558,7 +558,8 @@ family is the one `refresh-global-font-size' sets.")
       (unless (my/font-has-bold-p default-font-mono)
         (dolist (face (face-list))
           (when (memq (face-attribute face :weight nil)
-                      '(semi-bold demibold bold extra-bold extrabold
+                      '(semi-bold
+                        demibold bold extra-bold extrabold
                         ultra-bold ultrabold heavy black))
             (let* ((saved (get face 'face-override-spec))
                    (spec (my/fake-bold--override saved)))
@@ -1868,7 +1869,8 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
     ;; `undo-tree-incompatible-major-modes', include derived modes so comint
     ;; covers shell/agent-shell and magit-mode covers all Magit buffers.
     (defvar my/undo-tree-excluded-modes
-      '(comint-mode eshell-mode vterm-mode term-mode magit-mode
+      '(comint-mode
+        eshell-mode vterm-mode term-mode magit-mode
         w3m-mode eww-mode special-mode)
       "Major modes excluded from `undo-tree-mode', including derived modes.")
     (define-advice turn-on-undo-tree-mode (:before-until (&rest _) my/excluded)
