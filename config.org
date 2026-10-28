@@ -3618,24 +3618,223 @@ keep this before-save-hook guard even with the init.el fix."
             (recenter 5)))))
     (advice-add 'shell-maker-submit :after #'my/agent-shell-scroll-prompt-to-top)
 
-    ;; the mode-line segment rescans keymaps (`where-is-internal') and builds
-    ;; menu keymaps on every call, and doom-modeline evaluates it twice per
-    ;; mode-line update -- so every keystroke paid ~6ms plus the garbage.
-    ;; cache it briefly; the busy spinner stays live so it still animates.
+    ;; compact mode-line segment, replacing agent-shell's "Opus 5.5 ➤ High ➤
+    ;; Auto ➤ 131k/1m (13%)" with "Opus5.5·hi·auto 131k/1m", plus account
+    ;; limits in claude buffers -- 5-hour, weekly, then per-model weekly:
+    ;; percentages "25@14:29 4@Sun 0", each limit in its own face. context is
+    ;; coloured only from 60%. help-echo has the full names, and mouse-1 on
+    ;; the model, effort or mode opens its picker.
+    (defvar my/agent-shell-effort-abbrevs
+      '(("Default" . "dflt") ("Low" . "lo") ("Medium" . "med") ("High" . "hi")
+        ("Xhigh" . "xhi") ("Max" . "max") ("Ultra" . "ultra"))
+      "Mode-line names for agent effort levels.")
+
+    (defvar my/agent-shell-mode-abbrevs
+      '(("Manual" . "manual") ("Accept edits" . "edits") ("Plan" . "plan")
+        ("Auto" . "auto") ("Bypass permissions" . "bypass")
+        ("Read-only" . "ro") ("Workspace access" . "ws")
+        ("Auto review" . "review") ("Full access" . "full"))
+      "Mode-line names for agent session modes.")
+
+    (defun my/agent-shell--claude-p ()
+      "Non-nil in a Claude Code agent-shell buffer."
+      (and (derived-mode-p 'agent-shell-mode)
+           (eq (map-nested-elt (agent-shell--state) '(:agent-config :identifier))
+               'claude-code)))
+
+    (defun my/agent-shell--pct-face (pct)
+      "Face for a usage PCT: none below 60, then warning, then error from 85."
+      (cond ((>= pct 85) 'agent-shell-error)
+            ((>= pct 60) 'agent-shell-warning)))
+
+    (defun my/agent-shell--part (text face help command)
+      "TEXT in FACE with HELP as tooltip; mouse-1 runs COMMAND in its window."
+      (propertize text 'face face 'help-echo help 'mouse-face 'mode-line-highlight
+                  'local-map (let ((map (make-sparse-keymap)))
+                               (define-key map [mode-line mouse-1]
+                                           (lambda (event)
+                                             (interactive "e")
+                                             (with-selected-window (posn-window (event-start event))
+                                               (call-interactively command))))
+                               map)))
+
+    ;; account limits come from the endpoint claude code's /usage reads, with
+    ;; the same oauth login. polled every 3 minutes while a claude shell is
+    ;; open, and after each claude turn (at most once a minute).
+    (defvar my/claude-usage nil
+      "Parsed response of Claude's account usage endpoint, or nil.")
+    (defvar my/claude-usage--fetched 0
+      "`float-time' of the last usage request.")
+    (defvar url-http-end-of-headers)
+    (require 'iso8601)
+
+    (defun my/claude-usage-refresh (&optional min-age)
+      "Fetch Claude account usage asynchronously.
+  Skip it if the last request was under MIN-AGE seconds ago."
+      (when (> (- (float-time) my/claude-usage--fetched) (or min-age 0))
+        (setq my/claude-usage--fetched (float-time))
+        (when-let* ((token (ignore-errors
+                             (map-nested-elt
+                              (json-read-file
+                               (expand-file-name ".credentials.json"
+                                                 (or (getenv "CLAUDE_CONFIG_DIR") "~/.claude")))
+                              '(claudeAiOauth accessToken)))))
+          (let ((url-request-extra-headers
+                 `(("Authorization" . ,(concat "Bearer " token))
+                   ("anthropic-beta" . "oauth-2025-04-20"))))
+            (url-retrieve "https://api.anthropic.com/api/oauth/usage"
+                          #'my/claude-usage--receive nil t t)))))
+
+    (defun my/claude-usage--receive (status)
+      "Store the usage response in this buffer unless STATUS has an error."
+      (unwind-protect
+          (unless (plist-get status :error)
+            (when-let* ((data (ignore-errors
+                                (json-parse-string
+                                 (decode-coding-string
+                                  (buffer-substring-no-properties url-http-end-of-headers (point-max))
+                                  'utf-8)
+                                 :object-type 'alist :null-object nil))))
+              (setq my/claude-usage data)
+              (force-mode-line-update t)))
+        (kill-buffer)))
+
+    (defun my/claude-usage--tick ()
+      "Refresh usage if any Claude agent-shell buffer is open."
+      (when (seq-some (lambda (b) (with-current-buffer b (my/agent-shell--claude-p)))
+                      (buffer-list))
+        (my/claude-usage-refresh 120)))
+
+    ;; replace rather than add, so reloading the config keeps one timer.
+    (defvar my/claude-usage--timer nil
+      "Repeating timer for `my/claude-usage--tick'.")
+    (when (timerp my/claude-usage--timer)
+      (cancel-timer my/claude-usage--timer))
+    (setq my/claude-usage--timer (run-at-time 5 180 #'my/claude-usage--tick))
+
+    (defun my/claude-usage-subscribe ()
+      "Refresh usage after each turn in a Claude shell."
+      (agent-shell-subscribe-to
+       :shell-buffer (current-buffer) :event 'turn-complete
+       :on-event (lambda (_) (when (my/agent-shell--claude-p) (my/claude-usage-refresh 60)))))
+    (add-hook 'agent-shell-mode-hook #'my/claude-usage-subscribe)
+
+    (defvar my/claude-usage-faces
+      '(("session" . font-lock-string-face)
+        ("weekly_all" . font-lock-doc-face)
+        ("weekly_scoped" . font-lock-type-face))
+      "Faces telling adjacent usage limits apart, by limit kind.
+  The warning and error faces replace them from 60% and 85%.")
+
+    (defun my/claude-usage--reset (time)
+      "Reset TIME as HH:MM within a day, else as a weekday."
+      (format-time-string (if (< (float-time (time-subtract time nil)) 86400) "%H:%M" "%a")
+                          time))
+
+    (defun my/claude-usage--string ()
+      "Account limit percentages, e.g. \"25@14:29 4@Sun 0\", or nil without data."
+      (let* ((limits (alist-get 'limits my/claude-usage))
+             (weekly (seq-find (lambda (l) (equal (alist-get 'kind l) "weekly_all")) limits))
+             parts help)
+        (seq-doseq (l limits)
+          (let* ((kind (alist-get 'kind l))
+                 (pct (or (alist-get 'percent l) 0))
+                 (reset (ignore-errors (encode-time (iso8601-parse (alist-get 'resets_at l)))))
+                 (model (map-nested-elt l '(scope model display_name)))
+                 (label (pcase kind
+                          ("session" "5h")
+                          ("weekly_all" "wk")
+                          ("weekly_scoped" (and model (substring model 0 1)))))
+                 ;; a model's weekly limit usually resets with the overall one
+                 (same-reset (and (equal kind "weekly_scoped") weekly reset
+                                  (when-let* ((w (ignore-errors
+                                                   (encode-time (iso8601-parse
+                                                                 (alist-get 'resets_at weekly))))))
+                                    (< (abs (float-time (time-subtract reset w))) 3600)))))
+            (when label
+              ;; no % sign: doom-modeline formats misc-info twice, so even an
+              ;; escaped %@ reaches a second pass and prints "-"
+              (push (propertize (concat (number-to-string pct)
+                                        (when (and reset (not same-reset))
+                                          (concat "@" (my/claude-usage--reset reset))))
+                                'face (or (my/agent-shell--pct-face pct)
+                                          (cdr (assoc kind my/claude-usage-faces))))
+                    parts)
+              (push (format "%s: %d%% used, resets %s"
+                            (pcase kind ("session" "5-hour") ("weekly_all" "Weekly")
+                                   (_ (concat model " weekly")))
+                            pct (if reset (format-time-string "%a %H:%M" reset) "?"))
+                    help))))
+        (when parts
+          (propertize (string-join (nreverse parts) " ")
+                      'help-echo (string-join (nreverse help) "\n")))))
+
+    (defun my/agent-shell--segment ()
+      "Compact agent-shell mode-line segment, without the busy spinner."
+      (let* ((state (agent-shell--state))
+             (model-id (agent-shell--current-model-id state))
+             (model (or (map-elt (seq-find (lambda (m) (equal (map-elt m :model-id) model-id))
+                                           (agent-shell--get-available-models state))
+                                 :name)
+                        model-id))
+             (effort (agent-shell-get-thought-level-name state))
+             (mode (agent-shell--resolve-session-mode-name
+                    (agent-shell--current-mode-id state)
+                    (agent-shell--get-available-modes state)))
+             (usage (map-elt state :usage))
+             (used (map-elt usage :context-used))
+             (size (map-elt usage :context-size))
+             (settings
+              (delq nil
+                    (list (when model
+                            (my/agent-shell--part
+                             ;; "Opus 5.5" -> "Opus5.5", "Default (recommended)" -> "Default"
+                             (replace-regexp-in-string
+                              "\\([[:alpha:]]\\) \\([0-9]\\)" "\\1\\2"
+                              (replace-regexp-in-string " *(.*)" "" model))
+                             'agent-shell-model (concat "Model: " model)
+                             #'agent-shell-set-session-model))
+                          (when effort
+                            (my/agent-shell--part
+                             (or (cdr (assoc effort my/agent-shell-effort-abbrevs)) (downcase effort))
+                             'agent-shell-thought-level (concat "Effort: " effort)
+                             #'agent-shell-set-session-thought-level))
+                          (when mode
+                            (my/agent-shell--part
+                             (or (cdr (assoc mode my/agent-shell-mode-abbrevs)) (downcase mode))
+                             'agent-shell-session-mode (concat "Mode: " mode)
+                             #'agent-shell-set-session-mode))))))
+        (string-join
+         (delq nil
+               (list ""
+                     (when agent-shell-command-prefix
+                       (propertize "⧉" 'face 'agent-shell-container-indicator
+                                   'help-echo "Running in container"))
+                     (when settings (string-join settings "·"))
+                     (when (and used size (> size 0))
+                       (propertize (format "%s/%s" (agent-shell--format-number-compact used)
+                                           (agent-shell--format-number-compact size))
+                                   'face (my/agent-shell--pct-face (/ (* 100.0 used) size))
+                                   'help-echo (agent-shell--format-usage usage)))
+                     (when (my/agent-shell--claude-p) (my/claude-usage--string))))
+         " ")))
+
+    ;; doom-modeline evaluates the segment twice per mode-line update; build it
+    ;; at most every half second and keep only the busy spinner live.
     (defvar-local my/agent-shell--mode-line-cache nil
       "(TIME . STRING) of the last agent-shell mode-line segment, minus the busy frame.")
 
-    (define-advice agent-shell--mode-line-format (:around (orig) my/cache)
-      "Rebuild agent-shell's mode-line segment at most every half second."
-      (let ((now (float-time)))
-        (unless (and my/agent-shell--mode-line-cache
-                     (< (- now (car my/agent-shell--mode-line-cache)) 0.5))
-          (setq my/agent-shell--mode-line-cache
-                (cons now (cl-letf (((symbol-function 'agent-shell--busy-indicator-frame)
-                                     #'ignore))
-                            (funcall orig)))))
-        (concat (cdr my/agent-shell--mode-line-cache)
-                (agent-shell--busy-indicator-frame))))
+    (advice-remove 'agent-shell--mode-line-format 'agent-shell--mode-line-format@my/cache)
+    (define-advice agent-shell--mode-line-format (:override () my/compact)
+      "Return the cached compact segment plus the live busy spinner."
+      (when (and (derived-mode-p 'agent-shell-mode)
+                 (memq agent-shell-header-style '(none nil)))
+        (let ((now (float-time)))
+          (unless (and my/agent-shell--mode-line-cache
+                       (< (- now (car my/agent-shell--mode-line-cache)) 0.5))
+            (setq my/agent-shell--mode-line-cache (cons now (my/agent-shell--segment))))
+          (concat (cdr my/agent-shell--mode-line-cache)
+                  (agent-shell--busy-indicator-frame)))))
 
     ;; Desktop notification (via notify-send) when the agent needs you -- it
     ;; either finished its turn or is asking permission to run a tool. Same
