@@ -1515,6 +1515,23 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     ;; (agent-shell) snap back to insert. Guarding it preserves live states.
     (unless (bound-and-true-p evil-mode) (evil-mode 1))
 
+    ;; graphical frames receive C-i as its own event, separate from the tab
+    ;; key, but emacs folds it into TAB. decode it as [C-i] where that has a
+    ;; binding (agent-shell binds it) and leave it as TAB elsewhere, keeping
+    ;; evil's C-i jump. terminals can't tell the two apart, and
+    ;; `input-decode-map' is per terminal, so set it up on each graphical frame.
+    (defun my/decode-C-i (_prompt)
+      "Return [C-i] if it is bound in the current context, else C-i (TAB)."
+      (if (key-binding [C-i]) [C-i] [?\C-i]))
+
+    (defun my/setup-C-i-decoding (&optional frame)
+      "Distinguish C-i from TAB on FRAME's terminal if it is graphical."
+      (with-selected-frame (or frame (selected-frame))
+        (when (display-graphic-p)
+          (define-key input-decode-map [?\C-i] #'my/decode-C-i))))
+    (add-hook 'after-make-frame-functions #'my/setup-C-i-decoding)
+    (my/setup-C-i-decoding)
+
     ;; no more confusing fallback
     (setq evil-goto-definition-functions '(evil-goto-definition-xref))
 
@@ -3582,10 +3599,11 @@ keep this before-save-hook guard even with the init.el fix."
     ;; model_reasoning_effort in ~/.codex/config.toml (xhigh) and can be
     ;; changed per session with `agent-shell-set-session-config-option'.
     (setq agent-shell-openai-default-model-id "gpt-6-astra")
-    ;; Ergonomic `I' (like vterm): jump to the bottom / end of the prompt
-    ;; line, then enter insert state -- ready to type a new prompt.
+    ;; C-i jumps to the bottom / end of the prompt line, then enters insert
+    ;; state -- ready to type a new prompt. [C-i] is the graphical-frame C-i
+    ;; decoded in the evil config; TAB stays `agent-shell-next-item'.
     (map! :n agent-shell-mode-map
-          "I" (cmd! (goto-char (point-max)) (evil-insert 1)))
+          [C-i] (cmd! (goto-char (point-max)) (evil-insert 1)))
     ;; After submitting, scroll the submit point to the top of the window so
     ;; the streamed reply appears from the top (visible from its first char)
     ;; instead of off-screen below the prompt. shell-maker's auto-scroll then
