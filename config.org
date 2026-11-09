@@ -1947,6 +1947,409 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
       "skip persistent undo reads for encrypted buffers, including old history."
       (not (my/encrypted-file-buffer-p))))
 #+end_src
+* Helix
+Hel ([[https://github.com/helheim-emacs/hel][helheim-emacs/hel]], on MELPA) supplies Helix's selection-first
+editing: =x= selects lines, =C= adds a cursor below, and =d= / =c= / =y= act on
+every selection at once. Evil stays the foundation. =my/helix-mode= adds a few
+keys to Evil's normal state in prog, text, conf and agent-shell buffers, and
+each hands the buffer to Hel for one selection session. The session ends, back in Evil, once
+the selection is gone and one cursor is left. Toggle with =SPC e h=, or set
+=my/helix-by-default=.
+
+Inside a session Hel's own keys apply: motions select, =s= / =S= / =K= split and
+filter selections into cursors, =,= drops the extra cursors and =Esc= collapses
+the selection. Hel's cursor sits between characters, so without a selection
+=d= deletes backward. =SPC= leaves for Evil's leader, and =:= leaves for Evil's
+ex line taking the selection along as Evil's visual selection, so =x := runs
+an ex command on the selected lines.
+** =hel=
+Nix installs =hel= via emacs.nix with dash, avy, pcre2el and ultra-scroll.
+Sessions use =hel-local-mode=; global =hel-mode= stays off.
+
+=hel.el= itself is never loaded, because it also loads =hel-integration.el=,
+which binds h/j/k/l/g/G/i in =special-mode-map= and installs <normal-state>
+maps in special-, prog- and text-mode-map, overwriting Evil's state maps
+there and breaking q and other special-buffer keys. Hel has no option to skip
+it, so this requires =hel-keybindings=, which pulls in the core, commands,
+search, scroll and multiple-cursor files and nothing else, plus =hel-macros=. If a Hel update
+moves things between files, the failure is a loud void function rather than
+the integration quietly loading. The integration's multiple-cursor support is
+copied below, guarded so it only acts in a session.
+#+begin_src emacs-lisp
+  (use-package hel-keybindings
+    :defer t
+    :custom
+    ;; Hel's defaults are reversed. :custom invokes each :set handler to
+    ;; update state cursors even if Hel is already loaded.
+    (hel-normal-state-cursor-type 'box)
+    (hel-insert-state-cursor-type 'bar)
+    :init
+    (setq hel-whitelist-file (no-littering-expand-var-file-name "hel-multiple-cursors.el"))
+    ;; Set Hel's (indent defun) metadata before loading so org-src buffers
+    ;; and the formatting check indent these calls consistently.
+    (dolist (fn '(hel-keymap-set hel-keymap-global-set))
+      (put fn 'lisp-indent-function 'defun))
+    (put 'hel-define-advice 'lisp-indent-function 2)
+    :config
+    ;; Hel's own files load its macros only at compile time; `hel.el' is what
+    ;; loads them at run time, and `hel-cache-input' below expands to them.
+    (require 'hel-macros)
+
+    ;;;; Multiple cursors
+    ;; Upstream hel-integration.el's multiple-cursor support: M-x commands
+    ;; run per cursor, prompts and keyboard macros run once, and external
+    ;; pastes populate every cursor's kill ring. Upstream leaves the M-x and
+    ;; paste advice unguarded; here every piece is a no-op outside a session.
+    (hel-set-single-cursor-command 'execute-extended-command)
+    (hel-set-single-cursor-command 'execute-extended-command-for-buffer)
+    (defun my/helix--for-all-cursors-a (&rest _)
+      "Run the command M-x read for every cursor, as Hel's own advice does."
+      (when hel-multiple-cursors-mode
+        (hel--execute-for-all-cursors-a)))
+
+    (defun my/helix--current-kill-a (n &optional _do-not-move)
+      "Add pastes from other programs to the kill rings of all cursors."
+      (when-let* ((interprogram-paste (and hel-multiple-cursors-mode
+                                           (= n 0)
+                                           interprogram-paste-function
+                                           (funcall interprogram-paste-function))))
+        (when (listp interprogram-paste)
+          (cl-callf reverse interprogram-paste))
+        (let ((interprogram-cut-function nil)
+              (interprogram-paste-function nil))
+          (if (listp interprogram-paste)
+              (mapc #'kill-new interprogram-paste)
+            (kill-new interprogram-paste))
+          (dolist (cursor (hel-all-fake-cursors))
+            (let ((kill-ring (overlay-get cursor 'kill-ring))
+                  (kill-ring-yank-pointer (overlay-get cursor 'kill-ring-yank-pointer)))
+              (if (listp interprogram-paste)
+                  (mapc #'kill-new interprogram-paste)
+                (kill-new interprogram-paste))
+              (overlay-put cursor 'kill-ring kill-ring)
+              (overlay-put cursor 'kill-ring-yank-pointer kill-ring-yank-pointer))))))
+
+    (defun my/helix--kbd-macro-a (orig-fun &rest args)
+      "Run keyboard macros once; fake cursors follow the real cursor's commands."
+      (unless hel-executing-command-for-fake-cursor
+        (apply orig-fun args)))
+
+    ;; Each defines READER@hel-cache-input, which reuses the first answer
+    ;; while there are multiple cursors and otherwise calls READER as is.
+    (hel-cache-input read-char)
+    (hel-cache-input read-quoted-char)
+    (hel-cache-input read-string)
+    (hel-cache-input read-from-kill-ring)
+    (hel-cache-input read-char-from-minibuffer)
+    (hel-cache-input read-char-by-name) ; Used by `insert-char'.
+    (hel-cache-input register-read-with-preview)
+    (hel-cache-input hel-surround-read-tag)
+    (hel-cache-input consult--read)
+
+    ;; Hel's core advice, which `hel-mode' would install, wrapped where
+    ;; upstream doesn't check for a session itself.
+    (defun my/helix--update-keymaps-a (&rest _)
+      "Rebuild Hel's keymaps after a keymap change in a session's buffer."
+      (when hel-local-mode
+        (hel-update-active-keymaps)))
+
+    (defun my/helix--input-method-a (orig-fun &rest args)
+      "Read with Hel's insert-state input method in a session's buffer.
+  `hel-input-method' is permanent-local, so it outlives the session."
+      (if hel-local-mode
+          (apply #'hel--with-input-method-a orig-fun args)
+        (apply orig-fun args)))
+
+    (defun my/helix--advice ()
+      "The (SYMBOL HOW FUNCTION) advice `my/helix-mode' installs.
+  Every FUNCTION does nothing outside a session, except
+  `hel--update-main-cursor-color', which only keeps Hel's cursor face in step
+  with the frame's cursor color."
+      `((execute-extended-command :after my/helix--for-all-cursors-a)
+        (execute-extended-command-for-buffer :after my/helix--for-all-cursors-a)
+        (current-kill :before my/helix--current-kill-a)
+        (execute-kbd-macro :around my/helix--kbd-macro-a)
+        ,@(mapcar (lambda (reader)
+                    (list reader :around (intern (format "%s@hel-cache-input" reader))))
+                  '(read-char read-quoted-char read-string read-from-kill-ring
+                    read-char-from-minibuffer read-char-by-name
+                    register-read-with-preview hel-surround-read-tag consult--read))
+        (select-window :after select-window@hel) ; `hel-update-cursor' checks
+        (use-global-map :after my/helix--update-keymaps-a)
+        (use-local-map :after my/helix--update-keymaps-a)
+        (read-char :around my/helix--input-method-a)
+        (toggle-input-method :around hel--refresh-input-method-a) ; checks
+        (set-cursor-color :after hel--update-main-cursor-color)))
+
+    (defun my/helix--set-advice (enable)
+      "Install the advice of `my/helix--advice' if ENABLE, else remove it."
+      (pcase-dolist (`(,symbol ,how ,function) (my/helix--advice))
+        (if enable
+            (advice-add symbol how function)
+          (advice-remove symbol function))))
+
+    ;;;; Undo
+    ;; Route Hel's u/U from `undo-only'/`undo-redo' through undo-tree, whose
+    ;; advice falls back to the built-ins when disabled. Hel groups
+    ;; `buffer-undo-list' before undo-tree transfers it, preserving single-step
+    ;; undo. Deactivate the mark first to prevent region undo.
+    (defun my/helix-undo ()
+      "Undo one step through undo-tree with Hel's mark deactivated."
+      (interactive "*")
+      (deactivate-mark)
+      (let ((deactivate-mark nil))
+        (undo-tree-undo)))
+
+    (defun my/helix-redo ()
+      "Redo one step through undo-tree with Hel's mark deactivated."
+      (interactive "*")
+      (deactivate-mark)
+      (let ((deactivate-mark nil))
+        (undo-tree-redo)))
+    (put 'my/helix-undo 'multiple-cursors nil)
+    (put 'my/helix-redo 'multiple-cursors nil)
+
+    ;; Hel brackets undo steps with cursor-restoration records such as
+    ;; (apply hel--undo-step-start POSITIONS). Exclude them from persisted
+    ;; history because replay requires Hel to be loaded.
+    (defun my/undo-tree-drop-hel-records (element)
+      "Return nil for Hel's cursor-position undo ELEMENT, else ELEMENT."
+      (unless (and (eq (car-safe element) 'apply)
+                   (memq (cadr element) '(hel--undo-step-start hel--undo-step-end)))
+        element))
+    (add-hook 'undo-tree-pre-save-element-functions #'my/undo-tree-drop-hel-records)
+    ;; Outside Hel sessions, retain only the inverse record to keep redo
+    ;; paired without restoring Hel's fake cursors or region in Evil.
+    (define-advice hel--undo-step-end (:around (orig positions) my/session-only)
+      (if hel-local-mode
+          (funcall orig positions)
+        (push `(apply hel--undo-step-start ,positions) buffer-undo-list)))
+
+    ;;;; Fixes
+    ;; Hel copies from the selection's end. Linewise selections end at the
+    ;; next line's start, causing `x C' to skip a line and copy an empty
+    ;; selection; column matching also rejects shorter target lines. Copy
+    ;; whole lines for linewise selections; delegate other selections to Hel.
+    (define-advice hel--copy-region (:around (orig direction) my/linewise)
+      (if (not (hel-linewise-selection-p))
+          (funcall orig direction)
+        (pcase-let* ((`(,beg ,end ,region-dir) (hel-region))
+                     (lines (count-lines beg end))
+                     (bounds (save-excursion
+                               (if (< direction 0)
+                                   (progn (goto-char beg)
+                                          (and (zerop (forward-line (- lines)))
+                                               (cons (point) beg)))
+                                 (goto-char end)
+                                 (and (< end (point-max))
+                                      (progn (forward-line lines)
+                                             (cons end (point))))))))
+          (when bounds
+            (pcase-let ((`(,point . ,mark) (if (< region-dir 0)
+                                               bounds
+                                             (cons (cdr bounds) (car bounds)))))
+              (if-let* ((cursor (hel-fake-cursor-at point))
+                        ((= mark (overlay-get cursor 'mark))))
+                  nil
+                (hel-create-fake-cursor-from-point)
+                (goto-char point)
+                (set-marker (mark-marker) mark)))))))
+
+    ;;;; Session keys
+    ;; Hel's global normal-state bindings apply only in session buffers.
+    (hel-keymap-global-set :state 'normal
+      "u"   #'my/helix-undo
+      "U"   #'my/helix-redo
+      "SPC" #'my/helix-to-evil          ; the leader is normal-state only
+      ":"   #'my/helix-to-evil-visual)  ; `x :' runs ex on the selected lines
+
+    ;;;; Mode line
+    ;; Evil is disabled in session buffers; show Hel's state in doom-modeline's
+    ;; `modals' segment.
+    (with-eval-after-load 'doom-modeline
+      (defun my/helix-modal-segment ()
+        "Return Hel's state in doom-modeline's `modals' style, or nil if inactive."
+        (when (and doom-modeline-modal (bound-and-true-p hel-local-mode) hel-state)
+          (pcase-let ((`(,text . ,face)
+                       (pcase hel-state
+                         ((and 'normal (guard hel--extend-selection))
+                          '("EXTEND" . doom-modeline-evil-visual-state))
+                         ('normal '("SELECT" . doom-modeline-evil-visual-state))
+                         ('insert '("INSERT" . doom-modeline-evil-insert-state))
+                         (state (cons (upcase (symbol-name state))
+                                      'doom-modeline-evil-emacs-state)))))
+            (concat (doom-modeline-spc)
+                    (propertize text 'face (doom-modeline-face face))
+                    (doom-modeline-spc)))))
+      (define-advice doom-modeline-segment--modals (:around (orig) my/helix)
+        (or (my/helix-modal-segment) (funcall orig))))
+    (define-advice hel-extend-selection (:after (&rest _) my/mode-line)
+      (force-mode-line-update)))
+#+end_src
+** Sessions
+Entry keys disable Evil locally, enable =hel-local-mode= and run the Hel
+command. The post-command check returns to Evil's normal state when no
+selection or extra cursor remains. A major-mode change ends the session
+first, and an error while starting one hands the buffer back to Evil unless
+it left a selection to work on. Evil and Hel both nest state maps under
+=<normal-state>=, so they must use separate keymaps. Entry keys belong to
+=my/helix-local-mode-map=, read only by Evil; session keys use Hel's global
+maps.
+#+begin_src emacs-lisp
+  (defun my/helix--end-session ()
+    "Return the current buffer from Hel to Evil's normal state.
+  Evil comes back even if tearing Hel down fails."
+    (remove-hook 'post-command-hook #'my/helix--maybe-end-session t)
+    (remove-hook 'change-major-mode-hook #'my/helix--end-session t)
+    (unwind-protect
+        (progn
+          (deactivate-mark)
+          (setq hel--extend-selection nil)
+          (when (bound-and-true-p hel-local-mode)
+            (hel-local-mode -1)))
+      (evil-local-mode 1)
+      ;; Restore normal state explicitly; Evil initializes shells such as
+      ;; agent-shell in insert state, but sessions begin in normal state.
+      (evil-normal-state)
+      ;; Restore the cursor color after Hel's state-specific frame overrides.
+      (let ((color (face-background 'cursor nil t)))
+        (unless (equal color (frame-parameter nil 'cursor-color))
+          (modify-frame-parameters nil `((cursor-color . ,color)))))))
+
+  (defun my/helix--maybe-end-session ()
+    "End the session once Hel's normal state has one cursor and no selection.
+  An edit deactivates the mark only after `post-command-hook' runs, so a
+  pending `deactivate-mark' counts as no selection."
+    (when (and hel-normal-state
+               (not hel-multiple-cursors-mode)
+               (or (not (region-active-p)) deactivate-mark))
+      (my/helix--end-session)))
+
+  (defun my/helix--start-session (command)
+    "Switch the current buffer from Evil to Hel's normal state and run COMMAND.
+  If anything signals, the buffer goes back to Evil unless a selection was
+  left to work on, and the error propagates."
+    (condition-case err
+        (progn
+          (evil-local-mode -1)
+          (hel-local-mode 1)
+          (hel-normal-state 1)
+          (add-hook 'post-command-hook #'my/helix--maybe-end-session 95 t)
+          ;; `hel-local-mode' and its hooks are permanent-local and survive a
+          ;; major-mode change, while Evil turns itself back on for the new
+          ;; mode; end the session before that happens.
+          (add-hook 'change-major-mode-hook #'my/helix--end-session nil t)
+          (setq this-command command)
+          (call-interactively command))
+      ((debug error)
+       (if (bound-and-true-p hel-normal-state)
+           (my/helix--maybe-end-session)
+         (my/helix--end-session))
+       (signal (car err) (cdr err)))))
+
+  (defun my/helix--to-evil (visual)
+    "End the session and replay this command's keys in Evil.
+  With VISUAL, preserve the selection as Evil's visual selection."
+    (let ((keys (this-command-keys-vector))
+          (selection (and visual
+                          (use-region-p)
+                          (list (region-beginning) (region-end)
+                                (if (hel-linewise-selection-p) 'line 'inclusive)
+                                (if (< (point) (mark)) -1 1)))))
+      (my/helix--end-session)
+      (pcase selection
+        ;; Convert Hel's exclusive selection end to Evil's inclusive end.
+        (`(,beg ,end ,type ,dir) (evil-visual-select beg (1- end) type dir)))
+      (setq unread-command-events
+            (append (listify-key-sequence keys) unread-command-events))))
+
+  (defun my/helix-to-evil ()
+    "End the session and run this key in Evil's normal state."
+    (interactive)
+    (my/helix--to-evil nil))
+
+  (defun my/helix-to-evil-visual ()
+    "End the session and replay this key in Evil with a visual selection."
+    (interactive)
+    (my/helix--to-evil t))
+  (put 'my/helix-to-evil 'multiple-cursors nil)
+  (put 'my/helix-to-evil-visual 'multiple-cursors nil)
+
+  (defun my/helix-select-line ()
+    "Start a Helix session by selecting the line; Helix's x."
+    (interactive)
+    (my/helix--start-session #'hel-expand-line-selection))
+
+  (defun my/helix-select-line-backward ()
+    "Start a Helix session by selecting the line upward; Helix's X."
+    (interactive)
+    (my/helix--start-session #'hel-expand-line-selection-backward))
+
+  (defun my/helix-add-cursor-below ()
+    "Start a Helix session with a second cursor below; Helix's C."
+    (interactive)
+    (my/helix--start-session #'hel-copy-selection))
+
+  (defun my/helix-add-cursor-above ()
+    "Start a Helix session with a second cursor above; Helix's M-c."
+    (interactive)
+    (my/helix--start-session #'hel-copy-selection-up))
+#+end_src
+** Toggle
+#+begin_src emacs-lisp
+  (defvar-keymap my/helix-local-mode-map
+    :doc "Keymap of `my/helix-local-mode'; only its Evil normal-state map binds.")
+
+  (define-minor-mode my/helix-local-mode
+    "Start Helix selection sessions from Evil's normal state."
+    :lighter nil
+    (when my/helix-local-mode
+      (require 'hel-keybindings))
+    (evil-normalize-keymaps))
+
+  (defun my/helix--normal-only (command)
+    "Return a binding for COMMAND restricted to Evil's normal state.
+  Visual state inherits normal-state maps; let the key fall through there."
+    `(menu-item "" ,command :filter ,(lambda (cmd) (and (evil-normal-state-p) cmd))))
+
+  ;; Intercept priority prevents later mode maps, such as evil-org's, from
+  ;; overriding session entry keys.
+  (evil-make-intercept-map my/helix-local-mode-map 'normal t)
+  (pcase-dolist (`(,key . ,command)
+                 '(("x"   . my/helix-select-line)
+                   ("X"   . my/helix-select-line-backward)
+                   ("C"   . my/helix-add-cursor-below)
+                   ("M-c" . my/helix-add-cursor-above)))
+    (evil-define-key* 'normal my/helix-local-mode-map
+      (kbd key) (my/helix--normal-only command)))
+
+  (defun my/helix--turn-on ()
+    "Enable `my/helix-local-mode' in buffers meant for editing text.
+  agent-shell derives from `comint-mode'; its prompt is ordinary text, while
+  other shells keep Evil's keys."
+    (when (derived-mode-p 'prog-mode 'text-mode 'conf-mode 'agent-shell-mode)
+      (my/helix-local-mode 1)))
+
+  (define-globalized-minor-mode my/helix-mode my/helix-local-mode my/helix--turn-on
+    (if my/helix-mode
+        (progn
+          (require 'hel-keybindings)
+          (my/helix--set-advice t))
+      (dolist (buf (buffer-list))
+        (with-current-buffer buf
+          (when (bound-and-true-p hel-local-mode)
+            (my/helix--end-session))))
+      (when (fboundp 'my/helix--set-advice)
+        (my/helix--set-advice nil))))
+
+  (map-leader! :n '(global evil-mode-map) "SPC"
+               "e h" '("Toggle Helix editing" . my/helix-mode))
+
+  (defvar my/helix-by-default nil
+    "Non-nil starts Emacs in `my/helix-mode'; SPC e h toggles either way.")
+  (when (and my/helix-by-default (not after-init-time))
+    (my/helix-mode 1))
+#+end_src
 * Completion
 ** =prescient=
 #+begin_src emacs-lisp
