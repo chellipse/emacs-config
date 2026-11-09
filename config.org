@@ -2650,7 +2650,66 @@ return suspect paths using the my/file-encrypted-on-disk-p heuristic."
     (dolist (f '("default.nix" "flake.nix" "shell.nix"))
       (setq projectile-project-root-files-bottom-up
             (delete f projectile-project-root-files-bottom-up))
-      (add-to-list 'projectile-project-root-files f)))
+      (add-to-list 'projectile-project-root-files f))
+
+    ;; Store per-machine project aliases (e.g. lustre-release -> lustre) in
+    ;; untracked var/ data, falling back to directory names. Aliases appear
+    ;; in agent-shell buffer names, the modeline and Projectile prompts;
+    ;; set them with `my/projectile-rename-project'.
+    (defvar my/project-names-file (no-littering-expand-var-file-name "project-names.eld")
+      "File holding an alist of (PROJECT-ROOT . NAME).")
+
+    (defvar my/project-names 'unloaded
+      "Alist of (PROJECT-ROOT . NAME), read from `my/project-names-file'.")
+
+    (defun my/project-names ()
+      "Return the project alias alist, reading it from disk on first use."
+      (when (eq my/project-names 'unloaded)
+        (setq my/project-names
+              (when (file-readable-p my/project-names-file)
+                (with-temp-buffer
+                  (insert-file-contents my/project-names-file)
+                  (ignore-errors (read (current-buffer)))))))
+      my/project-names)
+
+    (defun my/project--key (root)
+      "Return ROOT's expanded path with a trailing slash for `my/project-names'."
+      (file-name-as-directory (expand-file-name root)))
+
+    (defun my/projectile-project-name (root)
+      "Return ROOT's alias from `my/project-names', or its directory name."
+      (or (cdr (assoc (my/project--key root) (my/project-names)))
+          (projectile-default-project-name root)))
+    (setq projectile-project-name-function #'my/projectile-project-name)
+
+    (defun my/projectile-rename-project (root name)
+      "Show the project at ROOT as NAME; an empty NAME restores its directory name.
+  Open agent-shell buffers for the project are renamed to match."
+      (interactive
+       (let* ((root (or (projectile-project-root) (user-error "Not in a project")))
+              (old (projectile-project-name root)))
+         (list root (string-trim (read-string (format "Rename %s to (empty to reset): " old)
+                                              nil nil old)))))
+      (let* ((key (my/project--key root))
+             (alist (assoc-delete-all key (copy-sequence (my/project-names)))))
+        (setq my/project-names (if (string-empty-p name) alist (cons (cons key name) alist)))
+        (make-directory (file-name-directory my/project-names-file) t)
+        (with-temp-file my/project-names-file
+          (let ((print-length nil) (print-level nil))
+            (pp my/project-names (current-buffer)))))
+      (let ((new (projectile-project-name root)))
+        (dolist (buf (buffer-list))
+          (with-current-buffer buf
+            (when (and (derived-mode-p 'agent-shell-mode)
+                       (equal (my/project--key default-directory) (my/project--key root)))
+              ;; Update both the buffer name and `shell-maker--buffer-name-override'.
+              ;; A bare `rename-buffer' leaves shell lookup using the old name,
+              ;; so submission creates an empty buffer under that name.
+              (shell-maker-set-buffer-name
+               buf (agent-shell--format-buffer-name
+                    (map-nested-elt (agent-shell--state) '(:agent-config :buffer-name))
+                    new)))))
+        (message "Project %s is now %s" (abbreviate-file-name root) new))))
 #+end_src
 ** =rg=
 #+begin_src emacs-lisp
