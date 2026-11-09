@@ -1794,6 +1794,21 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     :after (evil anzu)
     :demand t)
 #+end_src
+** =follow-mode=
+Follow-mode recomputes window boundaries before each redisplay, simulating
+each window's layout several times (about 9 ms for three w3m windows).
+=follow-cache-command-list= covers only vanilla motions; enable caching for
+Evil motions to avoid stutter on repeated j/k. Cache entries are validated
+against window starts before use, preventing stale entries from misaligning
+windows.
+#+begin_src emacs-lisp
+  (with-eval-after-load 'follow
+    (dolist (cmd '(evil-next-line
+                   evil-previous-line
+                   evil-next-visual-line evil-previous-visual-line
+                   evil-forward-char evil-backward-char))
+      (put cmd 'follow-mode-use-cache t)))
+#+end_src
 ** Encrypted-file hardening
 undo history and org element caches can persist decrypted buffer data under
 var/ without using encryption handlers. detect encrypted buffers through
