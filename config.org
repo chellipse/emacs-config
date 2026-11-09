@@ -2745,7 +2745,8 @@ maps.
   (map-leader! :n '(global evil-mode-map) "SPC"
                "c x" #'my-compile
                "c r" #'compile
-               "c c" #'my-recompile)
+               "c c" #'my-recompile
+               "c d" '("Refresh compile database" . my/refresh-compile-commands))
 #+end_src
 ** =emacs-lisp-mode=
 #+begin_src emacs-lisp
@@ -3026,6 +3027,99 @@ maps.
           "g d" #'evil-goto-definition
           "," #'lsp-ui-doc-toggle
           "." #'my/lsp-doc-glance-safe))
+#+end_src
+** Compile database
+Project scripts can rebuild stale objects and refresh compile databases beyond
+=CMAKE_EXPORT_COMPILE_COMMANDS=. Successful runs restart attached LSP workspaces.
+Set a project-relative script in =.dir-locals.el=:
+=((nil . ((my/compile-db-refresh-script . "tools/refresh.sh"))))=.
+Project-local paths apply without a prompt; =SPC c d= runs the script explicitly.
+#+begin_src emacs-lisp
+  (defvar my/compile-db-refresh-script nil
+    "Project-relative executable for `my/refresh-compile-commands'.
+  Set in .dir-locals.el; nil means no refresh script.")
+
+  (defun my/compile-db-script-safe-p (value)
+    "Return non-nil if VALUE is a nonempty relative path.
+  Reject ~ prefixes and .. components."
+    (and (stringp value)
+         (not (string-empty-p value))
+         (not (file-name-absolute-p value))
+         (not (string-prefix-p "~" value))
+         (not (member ".." (split-string value "/")))))
+  (put 'my/compile-db-refresh-script 'safe-local-variable #'my/compile-db-script-safe-p)
+
+  (defun my/compile-db-script (root)
+    "Return ROOT's safe directory-local refresh script, or nil.
+  Read through a probe file to support non-file buffers. Collect variables
+  without applying them or running `eval' entries; discard unsafe values silently."
+    (with-temp-buffer
+      (setq default-directory root)
+      (setq-local buffer-file-name (expand-file-name ".compile-db-probe" root))
+      (let ((enable-local-variables :safe))
+        (hack-dir-local-variables))
+      (prog1 (alist-get 'my/compile-db-refresh-script file-local-variables-alist)
+        (setq-local buffer-file-name nil))))
+
+  (defvar my/compile-db-refresh-history nil
+    "Minibuffer history for refresh-script flags.")
+
+  (defun my/lsp-restart-for-buffer (buffer)
+    "Restart every LSP workspace attached to BUFFER."
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (if-let* ((workspaces (and (bound-and-true-p lsp-mode) (lsp-workspaces))))
+            (progn
+              (mapc #'lsp-workspace-restart workspaces)
+              (message "Compile database refreshed; restarted %d workspace(s)"
+                       (length workspaces)))
+          (message "Compile database refreshed (no language server to restart)")))))
+
+  (defun my/refresh-compile-commands (&optional arg)
+    "Refresh the compile database and restart LSP on success.
+  Run the project's `my/compile-db-refresh-script' from its root in a
+  compilation buffer. With prefix ARG, prompt for extra script flags."
+    (interactive "P")
+    (let* ((root (or (and (fboundp 'projectile-project-root)
+                          (projectile-project-root))
+                     (when-let* ((proj (project-current)))
+                       (project-root proj))
+                     (user-error "Not in a project")))
+           (script (expand-file-name
+                    (or (my/compile-db-script root)
+                        (user-error "No refresh script for this project; set `my/compile-db-refresh-script' in its .dir-locals.el"))
+                    root))
+           (flags (if arg
+                      (read-string "Extra flags: " nil
+                                   'my/compile-db-refresh-history)
+                    ""))
+           (source (current-buffer)))
+      (unless (file-executable-p script)
+        (user-error "No executable refresh script at %s" script))
+      (let* ((default-directory root)
+             (buffer (compilation-start
+                      (string-trim (format "%s %s"
+                                           (shell-quote-argument script) flags))
+                      #'my/compile-db-mode
+                      (lambda (_) "*compile-commands*"))))
+        (with-current-buffer buffer
+          (setq my/compile-db-source source)))))
+
+  ;; Preserve the LSP target and reinstall the buffer-local finish hook when
+  ;; `recompile' reinitializes the mode. Other compilations must not restart LSP.
+  (defvar-local my/compile-db-source nil
+    "Buffer whose LSP workspaces restart after this compile database refresh.")
+  (put 'my/compile-db-source 'permanent-local t)
+
+  (defun my/compile-db--finished (_buffer status)
+    "Restart LSP for the refresh's source buffer if STATUS is success."
+    (if (string-prefix-p "finished" status)
+        (my/lsp-restart-for-buffer my/compile-db-source)
+      (message "Compile database refresh failed -- see *compile-commands*")))
+
+  (define-derived-mode my/compile-db-mode compilation-mode "Compile-DB"
+    "Compilation mode for `my/refresh-compile-commands' runs."
+    (add-hook 'compilation-finish-functions #'my/compile-db--finished nil t))
 #+end_src
 ** =ansi-color=
 #+begin_src emacs-lisp
