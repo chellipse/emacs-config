@@ -271,7 +271,12 @@ the monospace font."
     ;; Use a scalable CJK font instead of falling back to bitmap Unifont
     (let ((cjk (my/resolve-font my/font-cjk-candidates)))
       (dolist (charset '(han kana hangul cjk-misc bopomofo))
-        (set-fontset-font t charset (font-spec :family cjk)))))
+        (set-fontset-font t charset (font-spec :family cjk))))
+    ;; Terminal icons (eza in vterm) lack a face specifying an icon font.
+    ;; Default fallbacks lack plane-15 glyphs and use arbitrary fonts for BMP
+    ;; glyphs. Use nerd-icons' font for both private-use areas.
+    (dolist (range '((#xE000 . #xF8FF) (#xF0000 . #xFFFFD)))
+      (set-fontset-font t range (font-spec :family "Symbols Nerd Font Mono"))))
 
   (defun my/apply-fonts-once ()
     "Re-apply fonts on the first graphical frame, then stop listening."
