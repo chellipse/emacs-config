@@ -3592,6 +3592,13 @@ keep this before-save-hook guard even with the init.el fix."
     (setq agent-shell-preferred-agent-config
           (agent-shell-anthropic-make-claude-code-config))
 
+    ;; Remove "Agent" through the prefix function so agent-shell's buffer
+    ;; picker strips the same prefix used in names such as "Claude @ project".
+    (define-advice agent-shell--buffer-name-prefix (:filter-return (prefix) my/no-agent)
+      "Drop the \"Agent\" word from agent-shell buffer names."
+      (let ((case-fold-search t))  ; Match "Claude Agent @ " and "claude-agent @ ".
+        (and prefix (replace-regexp-in-string "[ -]agent @ " " @ " prefix t t))))
+
     ;; only insert context automatically when a region is active. the default
     ;; line source adds the current location whenever a shell opens. use
     ;; my/agent-shell-send-command-with-context for explicit context.
