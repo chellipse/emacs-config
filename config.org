@@ -3975,6 +3975,16 @@ keep this before-save-hook guard even with the init.el fix."
          :on-event #'my/agent-shell-attention)))
     (add-hook 'agent-shell-mode-hook #'my/agent-shell-subscribe-attention)
 
+    (defun my/agent-shell-copy-transcript-path ()
+      "Copy the current agent-shell buffer's transcript file path to the kill ring."
+      (interactive)
+      (unless (derived-mode-p 'agent-shell-mode)
+        (user-error "Not in an agent-shell buffer"))
+      (unless agent-shell--transcript-file
+        (user-error "No transcript file for this buffer"))
+      (kill-new agent-shell--transcript-file)
+      (message "Copied %s" agent-shell--transcript-file))
+
     ;; Long transcripts retain text properties that increase GC work.
     ;; Use agent-shell's comint truncation mechanism to retain only the tail;
     ;; full transcripts remain in .agent-shell/transcripts/.
