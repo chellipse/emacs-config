@@ -1969,9 +1969,11 @@ Hel ([[https://github.com/helheim-emacs/hel][helheim-emacs/hel]], on MELPA) supp
 editing: =x= selects lines, =C= adds a cursor below, and =d= / =c= / =y= act on
 every selection at once. Evil stays the foundation. =my/helix-mode= adds a few
 keys to Evil's normal state in prog, text, conf and agent-shell buffers, and
-each hands the buffer to Hel for one selection session. The session ends, back in Evil, once
-the selection is gone and one cursor is left. Toggle with =SPC e h=, or set
-=my/helix-by-default=.
+each hands the buffer to Hel for one selection session. The session ends,
+back in Evil, once the selection is gone and one cursor is left. With =x=
+taken, =d= deletes the character under the cursor as Helix's does, so Evil's
+=d= operator is off there (=x d= deletes a line, =D= still deletes to the
+end). Toggle with =SPC e h=, or set =my/helix-by-default=.
 
 Inside a session Hel's own keys apply: motions select, =s= / =S= / =K= split and
 filter selections into cursors, =,= drops the extra cursors and =Esc= collapses
@@ -2089,8 +2091,8 @@ copied below, guarded so it only acts in a session.
         ,@(mapcar (lambda (reader)
                     (list reader :around (intern (format "%s@hel-cache-input" reader))))
                   '(read-char read-quoted-char read-string read-from-kill-ring
-                    read-char-from-minibuffer read-char-by-name
-                    register-read-with-preview hel-surround-read-tag consult--read))
+                              read-char-from-minibuffer read-char-by-name
+                              register-read-with-preview hel-surround-read-tag consult--read))
         (select-window :after select-window@hel) ; `hel-update-cursor' checks
         (use-global-map :after my/helix--update-keymaps-a)
         (use-local-map :after my/helix--update-keymaps-a)
@@ -2329,6 +2331,23 @@ maps.
   Visual state inherits normal-state maps; let the key fall through there."
     `(menu-item "" ,command :filter ,(lambda (cmd) (and (evil-normal-state-p) cmd))))
 
+  (defun my/helix--evil-x ()
+    "A normal-state binding for whatever x runs in Evil without this mode.
+  The entry keys take x, so d deletes a character as in Helix, through the
+  same command x would run (`evil-org-delete-char' in org buffers), keeping
+  counts, `.' and registers as Evil's x has them."
+    `(menu-item "" nil
+                :filter ,(lambda (_)
+                           (when (evil-normal-state-p)
+                             ;; look x up as if this mode's keymap weren't
+                             ;; among Evil's active ones
+                             (let* ((ours (evil-get-auxiliary-keymap
+                                           my/helix-local-mode-map 'normal))
+                                    (evil-mode-map-alist
+                                     (seq-remove (lambda (entry) (eq (cdr entry) ours))
+                                                 evil-mode-map-alist)))
+                               (key-binding "x"))))))
+
   ;; Intercept priority prevents later mode maps, such as evil-org's, from
   ;; overriding session entry keys.
   (evil-make-intercept-map my/helix-local-mode-map 'normal t)
@@ -2339,6 +2358,7 @@ maps.
                    ("M-c" . my/helix-add-cursor-above)))
     (evil-define-key* 'normal my/helix-local-mode-map
       (kbd key) (my/helix--normal-only command)))
+  (evil-define-key* 'normal my/helix-local-mode-map "d" (my/helix--evil-x))
 
   (defun my/helix--turn-on ()
     "Enable `my/helix-local-mode' in buffers meant for editing text.
