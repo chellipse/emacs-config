@@ -1541,6 +1541,23 @@ buffer-local keyword record stays in sync for a clean `whitespace-color-off'."
     ;; no more confusing fallback
     (setq evil-goto-definition-functions '(evil-goto-definition-xref))
 
+    ;; Visual block turns Transient Mark mode off for its duration. Evil
+    ;; makes the variable buffer-local first, but the mode function sets the
+    ;; global default, so in a buffer that already has its own value the
+    ;; default goes off and, the local value being unchanged, Evil never
+    ;; turns it back on. Every other buffer then loses `region-active-p',
+    ;; which breaks Helix sessions. Put the default back as it was.
+    (defvar my/evil-transient-default nil
+      "Default `transient-mark-mode' when Evil saved it for visual state.")
+    (define-advice evil-save-transient-mark-mode (:before () my/keep-default)
+      (unless (assq 'transient-mark-mode evil-transient-vals)
+        (setq my/evil-transient-default (default-value 'transient-mark-mode))))
+    (define-advice evil-restore-transient-mark-mode (:around (orig) my/keep-default)
+      (let ((saved (assq 'transient-mark-mode evil-transient-vals)))
+        (funcall orig)
+        (when saved
+          (setq-default transient-mark-mode my/evil-transient-default))))
+
     (defun my/window-swap-in-direction (dir)
       "Swap the current window's buffer with the neighbor in DIR, and
     follow the buffer so it looks like the window shifted one slot over.
