@@ -4248,11 +4248,9 @@ keep this before-save-hook guard even with the init.el fix."
     (advice-add 'shell-maker-submit :after #'my/agent-shell-scroll-prompt-to-top)
 
     ;; compact mode-line segment, replacing agent-shell's "Opus 5.5 ➤ High ➤
-    ;; Auto ➤ 131k/1m (13%)" with "Opus5.5·hi·auto 131k/1m", plus account
-    ;; limits in claude buffers -- 5-hour, weekly, then per-model weekly:
-    ;; percentages "25@14:29 4@Sun 0", each limit in its own face. context is
-    ;; coloured only from 60%. help-echo has the full names, and mouse-1 on
-    ;; the model, effort or mode opens its picker.
+    ;; Auto ➤ 131k/1m (13%)" with "Opus5.5·hi·auto 131k/1m". Account
+    ;; limits show usage and reset times, e.g. "25@14:29 4@Sun 0". The
+    ;; background segment lists running shell commands, with full text on hover.
     (defvar my/agent-shell-effort-abbrevs
       '(("Default" . "dflt") ("Low" . "lo") ("Medium" . "med") ("High" . "hi")
         ("Xhigh" . "xhi") ("Max" . "max") ("Ultra" . "ultra"))
@@ -4265,11 +4263,68 @@ keep this before-save-hook guard even with the init.el fix."
         ("Auto review" . "review") ("Full access" . "full"))
       "Mode-line names for agent session modes.")
 
+    (defun my/agent-shell--agent-id ()
+      "Return the current agent-shell buffer's agent identifier."
+      (and (derived-mode-p 'agent-shell-mode)
+           (map-nested-elt (agent-shell--state) '(:agent-config :identifier))))
+
     (defun my/agent-shell--claude-p ()
       "Non-nil in a Claude Code agent-shell buffer."
-      (and (derived-mode-p 'agent-shell-mode)
-           (eq (map-nested-elt (agent-shell--state) '(:agent-config :identifier))
-               'claude-code)))
+      (eq (my/agent-shell--agent-id) 'claude-code))
+
+    (define-advice acp-make-initialize-request (:filter-return (request) my/async-tasks)
+      "Ask the Claude and Codex ACP bridges for background task events."
+      (when (memq (my/agent-shell--agent-id) '(claude-code codex))
+        (setf (alist-get '_meta (alist-get 'clientCapabilities (alist-get :params request)))
+              '((jetbrains (air (version . 1) (capabilities . ["asyncTasks"]))))))
+      request)
+
+    (defvar-local my/agent-shell--background-commands nil
+      "Alist of running background commands keyed by ACP async task ID.")
+
+    (define-advice agent-shell--on-notification (:around (original &rest args) my/async-tasks)
+      "Record background shell tasks and leave other notifications to ORIGINAL."
+      (let* ((notification (plist-get args :acp-notification))
+             (update (map-nested-elt notification '(params update)))
+             (kind (map-elt update 'sessionUpdate))
+             (state (plist-get args :state))
+             (buffer (map-elt state :buffer)))
+        (if (and (equal (map-elt notification 'method) "session/update")
+                 (member kind '("async_task_spawned" "async_task_state_update" "async_task_progress"))
+                 (buffer-live-p buffer))
+            (with-current-buffer buffer
+              (map-put! state :last-activity-time (current-time))
+              (when-let* ((id (map-elt update 'asyncTaskId)))
+                (cond
+                 ((and (equal kind "async_task_spawned")
+                       (equal (map-elt update 'taskType) "shell"))
+                  (let ((command (map-nested-elt
+                                  state (list :tool-calls (map-elt update 'toolCallId) :command))))
+                    (setf (alist-get id my/agent-shell--background-commands nil nil #'equal)
+                          (or command (map-elt update 'name) (map-elt update 'description) id)))
+                  (my/agent-shell--refresh-mode-line))
+                 ((member (map-elt update 'state) '("completed" "failed" "stopped"))
+                  (setf (alist-get id my/agent-shell--background-commands nil t #'equal) nil)
+                  (my/agent-shell--refresh-mode-line)))))
+          (apply original args))))
+
+    (define-advice agent-shell--initialize-client (:before () my/clear-background-commands)
+      "Drop commands belonging to the previous connection."
+      (setq my/agent-shell--background-commands nil)
+      (my/agent-shell--refresh-mode-line))
+
+    (defun my/agent-shell--background-segment (state)
+      "List the running background commands in STATE, with full text on hover."
+      (when (and my/agent-shell--background-commands
+                 (acp--client-started-p (map-elt state :client)))
+        (let* ((commands (mapcar #'cdr (reverse my/agent-shell--background-commands)))
+               (label (format "bg:%d" (length commands)))
+               (summary (truncate-string-to-width
+                         (replace-regexp-in-string "[[:space:]]+" " " (string-join commands ", "))
+                         28 nil nil "…")))
+          ;; Display the command literally, including mode-line escapes such as %s.
+          (propertize label 'display (concat label " " summary)
+                      'face 'font-lock-builtin-face 'help-echo (string-join commands "\n")))))
 
     (defun my/agent-shell--pct-face (pct)
       "Face for a usage PCT: none below 60, then warning, then error from 85."
@@ -4445,13 +4500,19 @@ keep this before-save-hook guard even with the init.el fix."
                                            (agent-shell--format-number-compact size))
                                    'face (my/agent-shell--pct-face (/ (* 100.0 used) size))
                                    'help-echo (agent-shell--format-usage usage)))
-                     (when (my/agent-shell--claude-p) (my/claude-usage--string))))
+                     (when (my/agent-shell--claude-p) (my/claude-usage--string))
+                     (my/agent-shell--background-segment state)))
          " ")))
 
     ;; doom-modeline evaluates the segment twice per mode-line update; build it
     ;; at most every half second and keep only the busy spinner live.
     (defvar-local my/agent-shell--mode-line-cache nil
       "(TIME . STRING) of the last agent-shell mode-line segment, minus the busy frame.")
+
+    (defun my/agent-shell--refresh-mode-line ()
+      "Invalidate the cached mode-line segment in the current buffer."
+      (setq my/agent-shell--mode-line-cache nil)
+      (force-mode-line-update))
 
     (advice-remove 'agent-shell--mode-line-format 'agent-shell--mode-line-format@my/cache)
     (define-advice agent-shell--mode-line-format (:override () my/compact)
