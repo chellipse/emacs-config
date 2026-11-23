@@ -4880,6 +4880,11 @@ KEEP defaults to 2000; a numeric prefix argument sets it, and a plain
                    :query "maildir:/proton/INBOX AND flag:unread" :key ?b)
             (:name "Inbox"
                    :query "maildir:/proton/INBOX"                 :key ?i)
+            ;; Proton Bridge also files a copy of every starred message
+            ;; in Starred; show each once, from its real folder
+            (:name "Starred"
+                   :query "flag:flagged AND NOT maildir:/proton/Starred AND NOT maildir:/proton/Trash"
+                   :key ?f)
             (:name "Unread"
                    :query "flag:unread AND NOT flag:trashed"      :key ?u)
             (:name "Week"
