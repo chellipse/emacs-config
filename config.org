@@ -4383,26 +4383,6 @@ keep this before-save-hook guard even with the init.el fix."
               (force-mode-line-update t)))
         (kill-buffer)))
 
-    (defun my/claude-usage--tick ()
-      "Refresh usage if any Claude agent-shell buffer is open."
-      (when (seq-some (lambda (b) (with-current-buffer b (my/agent-shell--claude-p)))
-                      (buffer-list))
-        (my/claude-usage-refresh 120)))
-
-    ;; replace rather than add, so reloading the config keeps one timer.
-    (defvar my/claude-usage--timer nil
-      "Repeating timer for `my/claude-usage--tick'.")
-    (when (timerp my/claude-usage--timer)
-      (cancel-timer my/claude-usage--timer))
-    (setq my/claude-usage--timer (run-at-time 5 180 #'my/claude-usage--tick))
-
-    (defun my/claude-usage-subscribe ()
-      "Refresh usage after each turn in a Claude shell."
-      (agent-shell-subscribe-to
-       :shell-buffer (current-buffer) :event 'turn-complete
-       :on-event (lambda (_) (when (my/agent-shell--claude-p) (my/claude-usage-refresh 60)))))
-    (add-hook 'agent-shell-mode-hook #'my/claude-usage-subscribe)
-
     (defvar my/claude-usage-faces
       '(("session" . font-lock-string-face)
         ("weekly_all" . font-lock-doc-face)
@@ -4410,7 +4390,7 @@ keep this before-save-hook guard even with the init.el fix."
       "Faces telling adjacent usage limits apart, by limit kind.
   The warning and error faces replace them from 60% and 85%.")
 
-    (defun my/claude-usage--reset (time)
+    (defun my/agent-shell--format-reset (time)
       "Reset TIME as HH:MM within a day, else as a weekday."
       (format-time-string (if (< (float-time (time-subtract time nil)) 86400) "%H:%M" "%a")
                           time))
@@ -4440,7 +4420,7 @@ keep this before-save-hook guard even with the init.el fix."
               ;; escaped %@ reaches a second pass and prints "-"
               (push (propertize (concat (number-to-string pct)
                                         (when (and reset (not same-reset))
-                                          (concat "@" (my/claude-usage--reset reset))))
+                                          (concat "@" (my/agent-shell--format-reset reset))))
                                 'face (or (my/agent-shell--pct-face pct)
                                           (cdr (assoc kind my/claude-usage-faces))))
                     parts)
@@ -4452,6 +4432,112 @@ keep this before-save-hook guard even with the init.el fix."
         (when parts
           (propertize (string-join (nreverse parts) " ")
                       'help-echo (string-join (nreverse help) "\n")))))
+
+    (defvar my/codex-usage nil
+      "Latest Codex account rate-limit snapshot.")
+
+    (defvar my/codex-usage--fetched 0
+      "Time of the last Codex account usage request.")
+
+    (defun my/codex-usage--available-p ()
+      "Return non-nil in a local Codex shell configured for account login."
+      (and (eq (my/agent-shell--agent-id) 'codex)
+           (alist-get :login agent-shell-openai-authentication)
+           (not agent-shell-command-prefix)
+           (not (file-remote-p default-directory))))
+
+    (defun my/codex-usage-refresh (min-age)
+      "Read Codex account rate limits asynchronously, at most once per MIN-AGE seconds."
+      (when (and (> (- (float-time) my/codex-usage--fetched) min-age)
+                 (executable-find "codex"))
+        (setq my/codex-usage--fetched (float-time))
+        ;; App Server uses newline-delimited JSON-RPC, like ACP.
+        (let ((client (acp-make-client :command "codex" :command-params '("app-server")))
+              (default-directory (expand-file-name "~/"))
+              timeout)
+          (cl-labels ((finish ()
+                        (cancel-timer timeout)
+                        (acp-shutdown :client client)))
+            (setq timeout (run-at-time 20 nil #'finish))
+            (condition-case nil
+                (acp-send-request
+                 :client client
+                 :request '((:method . "initialize")
+                            (:params (clientInfo (name . "emacs-agent-shell") (version . "1"))))
+                 :on-success
+                 (lambda (_)
+                   (acp-send-notification :client client :notification '((:method . "initialized")))
+                   (acp-send-request
+                    :client client :request '((:method . "account/rateLimits/read"))
+                    :on-success (lambda (response)
+                                  (setq my/codex-usage
+                                        (or (map-nested-elt response '(rateLimitsByLimitId codex))
+                                            (map-elt response 'rateLimits)))
+                                  (finish)
+                                  (dolist (buffer (buffer-list))
+                                    (with-current-buffer buffer
+                                      (when (my/codex-usage--available-p)
+                                        (my/agent-shell--refresh-mode-line)))))
+                    :on-failure (lambda (_error _message) (finish))))
+                 :on-failure (lambda (_error _message) (finish)))
+              (error (finish)))))))
+
+    (defun my/codex-usage--string ()
+      "Display Codex account usage and reset times in the mode line."
+      (when (my/codex-usage--available-p)
+        (let (parts help)
+          (dolist (key '(primary secondary))
+            (let* ((window (map-elt my/codex-usage key))
+                   (used (map-elt window 'usedPercent))
+                   (minutes (map-elt window 'windowDurationMins))
+                   (seconds (map-elt window 'resetsAt))
+                   (reset (and (numberp seconds) (seconds-to-time seconds)))
+                   (label (pcase minutes
+                            (300 "5-hour")
+                            (10080 "Weekly")
+                            ((pred numberp) (format "%d-minute" minutes))
+                            (_ (if (eq key 'primary) "Primary" "Secondary")))))
+              (when (numberp used)
+                (push (propertize (concat (number-to-string (round used))
+                                          (when reset
+                                            (concat "@" (my/agent-shell--format-reset reset))))
+                                  'face (or (my/agent-shell--pct-face used)
+                                            (if (eq key 'primary)
+                                                'font-lock-string-face 'font-lock-doc-face)))
+                      parts)
+                (push (concat (format "Codex %s: %d%% used" label (round used))
+                              (when reset (format-time-string ", resets %a %H:%M" reset)))
+                      help))))
+          (when parts
+            (propertize (string-join (nreverse parts) " ")
+                        'help-echo (string-join (nreverse help) "\n"))))))
+
+    (defun my/agent-shell--usage-tick ()
+      "Refresh account usage for providers with open agent-shell buffers."
+      (when (seq-some (lambda (b) (with-current-buffer b (my/agent-shell--claude-p)))
+                      (buffer-list))
+        (my/claude-usage-refresh 120))
+      (when (seq-some (lambda (b) (with-current-buffer b (my/codex-usage--available-p)))
+                      (buffer-list))
+        (my/codex-usage-refresh 120)))
+
+    (defvar my/claude-usage--timer nil
+      "Repeating timer for agent-shell account usage.")
+    (when (timerp my/claude-usage--timer)
+      (cancel-timer my/claude-usage--timer))
+    (setq my/claude-usage--timer (run-at-time 5 180 #'my/agent-shell--usage-tick))
+
+    (defun my/claude-usage-subscribe ()
+      "Refresh account usage at session startup and after turns."
+      (agent-shell-subscribe-to
+       :shell-buffer (current-buffer) :event 'init-finished
+       :on-event (lambda (_) (when (my/codex-usage--available-p) (my/codex-usage-refresh 60))))
+      (agent-shell-subscribe-to
+       :shell-buffer (current-buffer) :event 'turn-complete
+       :on-event (lambda (_)
+                   (cond ((my/agent-shell--claude-p) (my/claude-usage-refresh 60))
+                         ((my/codex-usage--available-p) (my/codex-usage-refresh 60))))))
+    (add-hook 'agent-shell-mode-hook #'my/claude-usage-subscribe)
 
     (defun my/agent-shell--segment ()
       "Compact agent-shell mode-line segment, without the busy spinner."
@@ -4500,7 +4586,9 @@ keep this before-save-hook guard even with the init.el fix."
                                            (agent-shell--format-number-compact size))
                                    'face (my/agent-shell--pct-face (/ (* 100.0 used) size))
                                    'help-echo (agent-shell--format-usage usage)))
-                     (when (my/agent-shell--claude-p) (my/claude-usage--string))
+                     (pcase (my/agent-shell--agent-id)
+                       ('claude-code (my/claude-usage--string))
+                       ('codex (my/codex-usage--string)))
                      (my/agent-shell--background-segment state)))
          " ")))
 
