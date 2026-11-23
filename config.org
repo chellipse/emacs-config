@@ -2922,6 +2922,13 @@ maps.
                    (c-or-c++-mode . c-or-c++-ts-mode)))
     (add-to-list 'major-mode-remap-alist remap))
 
+  ;; c-ts-mode's Emacs-source support (DEFUN, FOR_EACH_TAIL) runs a second
+  ;; shadow parser over every C buffer, doubling the reparse paid before
+  ;; each redisplay: ~25ms a keystroke in a large Lustre file, past the 20ms
+  ;; between key repeats, so held keys stutter. It is read when the mode
+  ;; starts, so it has to be set before the first C buffer opens.
+  (setq c-ts-mode-emacs-sources-support nil)
+
   ;; treat '_' as part of a word in C, since C uses snake_case -- makes evil
   ;; word motions (w/e/b, ciw, ...) span whole identifiers like foo_bar
   (add-hook! (c-mode-hook c-ts-mode-hook)
